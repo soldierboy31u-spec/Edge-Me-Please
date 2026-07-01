@@ -1,0 +1,4 @@
+# local / build artifacts — not part of the playable site
+.claude/
+*.zip
+redemptions-edge.html

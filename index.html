@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Redemption's Edge</title>
+<style>
+  /* ===========================================================================
+     PAGE SHELL  —  dark Western aesthetic
+     =========================================================================== */
+  :root {
+    --leather: #3a2a1a;
+    --dust:    #c9a877;
+    --ochre:   #b5712b;
+    --blood:   #8a1f1f;
+    --sepia:   #e8d5a8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0d0a06;
+    overflow: hidden;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: var(--sepia);
+    user-select: none;
+  }
+  #game-wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at center, #1a1209 0%, #0d0a06 70%, #050402 100%);
+  }
+  canvas {
+    display: block;
+    background: #1c1408;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9), inset 0 0 120px rgba(0,0,0,0.5);
+    image-rendering: optimizeQuality;
+    max-width: 100%; max-height: 100%;
+  }
+  /* Vignette overlay drawn over the canvas for cinematic framing */
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 200px rgba(0,0,0,0.85);
+    z-index: 5;
+  }
+  #hint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #6b5638; letter-spacing: 1px; z-index: 6;
+    pointer-events: none; opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="1280" height="720"></canvas>
+  </div>
+  <div id="vignette"></div>
+  <div id="hint">WASD Move &nbsp;•&nbsp; Mouse Aim &nbsp;•&nbsp; Click Fire &nbsp;•&nbsp; RMB Dead Eye &nbsp;•&nbsp; Shift Dash &nbsp;•&nbsp; Q Dynamite &nbsp;•&nbsp; F Lasso &nbsp;•&nbsp; H Whistle &nbsp;•&nbsp; R Reload &nbsp;•&nbsp; E Interact &nbsp;•&nbsp; ESC Pause</div>
+
+  <script src="game/config.js"></script>
+  <script src="game/utils.js"></script>
+  <script src="game/input.js"></script>
+  <script src="game/audio.js"></script>
+  <script src="game/camera.js"></script>
+  <script src="game/world.js"></script>
+  <script src="game/entities.js"></script>
+  <script src="game/systems.js"></script>
+  <script src="game/game.js"></script>
+  <script src="game/render.js"></script>
+  <script src="game/main.js"></script>
+
+</body>
+</html>
