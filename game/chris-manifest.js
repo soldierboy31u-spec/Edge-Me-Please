@@ -20,8 +20,8 @@ const CHRIS_MANIFEST = {
     walk:    { file: 'chris_walk.png',    framesPerDirection: 8, frameDurationMs: 90,  loop: true  },
     aim:     { file: 'chris_aim.png',     framesPerDirection: 1, frameDurationMs: 150, loop: true,  fallback: 'idle' },
     shoot:   { file: 'chris_shoot.png',   framesPerDirection: 3, frameDurationMs: 55,  loop: false, fallback: 'idle' },
-    // Not authored yet — these fall back until dedicated sheets exist.
-    dash:    { file: 'chris_dash.png',    framesPerDirection: 2, frameDurationMs: 70,  loop: true,  fallback: 'walk' },
+    dash:    { file: 'chris_dash.png',    framesPerDirection: 4, frameDurationMs: 45,  loop: true,  fallback: 'walk' },
+    // Not authored yet — falls back until a dedicated sheet exists.
     hurt:    { file: 'chris_hurt.png',    framesPerDirection: 1, frameDurationMs: 120, loop: true,  fallback: 'idle' },
     // mounted fallback:null => keep drawing the existing procedural horse+rider.
     mounted: { file: 'chris_mounted.png', framesPerDirection: 1, frameDurationMs: 150, loop: true,  fallback: null  },
