@@ -66,6 +66,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 
+ChrisSprites.init();   // sets up the animator; loads sheets only if USE_SPRITES is on
 Game.init();
 fit();
 requestAnimationFrame(loop);

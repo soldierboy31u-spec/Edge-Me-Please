@@ -2,3 +2,4 @@
 .claude/
 *.zip
 redemptions-edge.html
+__pycache__/

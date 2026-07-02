@@ -1,0 +1,2770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Redemption's Edge</title>
+<style>
+  /* ===========================================================================
+     PAGE SHELL  —  dark Western aesthetic
+     =========================================================================== */
+  :root {
+    --leather: #3a2a1a;
+    --dust:    #c9a877;
+    --ochre:   #b5712b;
+    --blood:   #8a1f1f;
+    --sepia:   #e8d5a8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0d0a06;
+    overflow: hidden;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: var(--sepia);
+    user-select: none;
+  }
+  #game-wrap {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at center, #1a1209 0%, #0d0a06 70%, #050402 100%);
+  }
+  canvas {
+    display: block;
+    background: #1c1408;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9), inset 0 0 120px rgba(0,0,0,0.5);
+    image-rendering: optimizeQuality;
+    max-width: 100%; max-height: 100%;
+  }
+  /* Vignette overlay drawn over the canvas for cinematic framing */
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 200px rgba(0,0,0,0.85);
+    z-index: 5;
+  }
+  #hint {
+    position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #6b5638; letter-spacing: 1px; z-index: 6;
+    pointer-events: none; opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="1280" height="720"></canvas>
+  </div>
+  <div id="vignette"></div>
+  <div id="hint">WASD Move &nbsp;•&nbsp; Mouse Aim &nbsp;•&nbsp; Click Fire &nbsp;•&nbsp; RMB Dead Eye &nbsp;•&nbsp; Shift Dash &nbsp;•&nbsp; Q Dynamite &nbsp;•&nbsp; F Lasso &nbsp;•&nbsp; H Whistle &nbsp;•&nbsp; R Reload &nbsp;•&nbsp; E Interact &nbsp;•&nbsp; ESC Pause</div>
+  <script>
+"use strict";
+/* Redemption's Edge — config.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   1. CONFIG / CONSTANTS
+   --------------------------------------------------------------------------- */
+const CFG = {
+  VIEW_W: 1280,
+  VIEW_H: 720,
+  WORLD_W: 4600,
+  WORLD_H: 4600,
+
+  // Player tuning — weighty & smooth. Lower accel = gentler ramp-up,
+  // lower top speed = less twitchy, slightly lower friction = a touch of glide.
+  PLAYER_ACCEL: 1650,        // px/s^2  (was 2200 — eases in more smoothly)
+  PLAYER_MAX_SPEED: 200,     // px/s on foot (was 262 — noticeably calmer)
+  PLAYER_FRICTION: 8.0,      // higher = stops quicker
+  PLAYER_RADIUS: 15,
+  PLAYER_MAX_HP: 100,
+
+  // Dash / dodge (Shift) — burst of speed + brief invulnerability.
+  DASH_SPEED: 760,           // px/s during the dash
+  DASH_TIME: 0.17,           // s the burst lasts
+  DASH_IFRAMES: 0.27,        // s of invulnerability (slightly longer than the burst)
+  DASH_COOLDOWN: 0.95,       // s before you can dash again (bumped per playtest)
+
+  // Dynamite (Q) — the chaos tool.
+  DYN_START: 3,              // sticks you spawn with
+  DYN_MAX: 8,                // carry cap
+  DYN_THROW_SPEED: 430,      // initial throw velocity (slides + slows)
+  DYN_FUSE: 1.15,            // s before it blows
+  DYN_RADIUS: 135,           // blast radius
+  DYN_DMG: 95,               // peak damage at the centre
+  DYN_KNOCKBACK: 560,        // peak knockback impulse
+
+  // --- Milestone 3 tools ---
+  // Lasso (F)
+  LASSO_RANGE: 255,          // reach of the throw
+  LASSO_COOLDOWN: 1.1,       // s between throws
+  LASSO_STUN: 1.5,           // s a roped enemy is stunned
+  LASSO_PULL: 1000,          // impulse yanking a roped enemy toward you
+  LASSO_GRAB: 70,            // radius of loot vacuumed in along the rope
+
+  // Horse whistle (H)
+  WHISTLE_GALLOP: 640,       // px/s a summoned horse runs to you
+
+  // Dead Eye (hold Right Mouse)
+  DEADEYE_MAX: 100,
+  DEADEYE_DRAIN: 26,         // meter/s spent while active
+  DEADEYE_GAIN_KILL: 24,     // meter gained per kill
+  DEADEYE_REGEN: 2.5,        // slow passive meter/s
+  DEADEYE_TIMESCALE: 0.32,   // world slowdown while active
+  DEADEYE_DMG: 1.7,          // player bullet damage multiplier while active
+  DEADEYE_MIN: 12,           // need at least this much meter to trigger
+
+  HORSE_MAX_SPEED: 470,      // px/s mounted
+  HORSE_ACCEL: 2400,
+
+  // Revolver
+  CYLINDER: 6,
+  FIRE_COOLDOWN: 0.34,       // s between shots
+  RELOAD_TIME: 1.7,          // s for full reload
+  BULLET_SPEED: 980,         // px/s
+  BULLET_LIFE: 0.95,         // s
+  BULLET_DMG: 34,
+  BULLET_SPREAD_PLAYER: 0.02,
+
+  // Enemies
+  ENEMY_RADIUS: 14,
+  ENEMY_HP: 70,
+  ENEMY_VIEW: 460,           // detection range
+  ENEMY_SHOOT_RANGE: 430,
+  ENEMY_SPEED: 130,
+  ENEMY_FIRE_COOLDOWN: 1.25,
+  ENEMY_WINDUP: 0.42,        // telegraph time — enemy "tells" before firing (arcade fairness)
+  ENEMY_SPREAD: 0.12,
+  ENEMY_BULLET_SPEED: 720,
+  ENEMY_BULLET_DMG: 11,
+  BULLET_KNOCKBACK: 120,     // shove enemies take per bullet hit
+
+  ENFORCER_HP: 150,
+  ENFORCER_SPEED: 150,
+  ENFORCER_DMG: 16,
+
+  // Lawmen (spawned by wanted level)
+  LAWMAN_HP: 90,
+  LAWMAN_SPEED: 165,
+
+  WANTED_MAX: 5,
+  WANTED_DECAY: 0.012,       // (legacy — superseded by the manhunt search model)
+  // --- The Manhunt (GTA-style cooldown, forgiving/arcade) ---
+  SEARCH_PER_STAR: 4.0,      // seconds unseen to shed one star
+  CAMP_COOLDOWN_MULT: 3.0,   // laying low at Darryl's camp cools this much faster
+  CAMP_SAFE_RADIUS: 300,     // lawmen won't hunt you inside this ring around camp
+  SEARCH_RADIUS_BASE: 250,   // search-zone size at 1 star
+  SEARCH_RADIUS_PER: 90,     // + per additional star
+  TILE: 64,
+};
+
+const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };
+
+// Difficulty modes. Multipliers scale enemy stats off the base CFG values.
+//   hp/dmg   : enemy toughness & damage          (higher = harder)
+//   fireRate : multiplies fire cooldown          (LOWER = shoots more often = harder)
+//   windup   : multiplies the attack-tell length (LOWER = less warning = harder)
+//   count    : scales gang sizes / respawn cap   (higher = more enemies)
+// 'easy' is the exact feel from the first M1 playtest — preserved on purpose.
+const DIFFICULTY = {
+  easy:   { label:'Easy',   hp:1.00, dmg:1.00, fireRate:1.00, windup:1.00, count:1.00 },
+  normal: { label:'Normal', hp:1.30, dmg:1.45, fireRate:0.80, windup:0.70, count:1.15 },
+  hard:   { label:'Hard',   hp:1.65, dmg:1.90, fireRate:0.62, windup:0.50, count:1.35 },
+};
+const DIFFICULTY_ORDER = ['easy','normal','hard'];
+
+
+"use strict";
+/* Redemption's Edge — utils.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   2. UTILITY / MATH HELPERS
+   --------------------------------------------------------------------------- */
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rand  = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const dist2 = (ax, ay, bx, by) => { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; };
+const dist  = (ax, ay, bx, by) => Math.sqrt(dist2(ax, ay, bx, by));
+const angTo = (ax, ay, bx, by) => Math.atan2(by - ay, bx - ax);
+const TAU = Math.PI * 2;
+
+// Axis-aligned circle-vs-rect overlap test, returns penetration resolution.
+function circleRect(cx, cy, r, rx, ry, rw, rh) {
+  const nx = clamp(cx, rx, rx + rw);
+  const ny = clamp(cy, ry, ry + rh);
+  const dx = cx - nx, dy = cy - ny;
+  const d2 = dx*dx + dy*dy;
+  if (d2 < r*r) {
+    const d = Math.sqrt(d2) || 0.0001;
+    return { hit: true, nx: dx / d, ny: dy / d, pen: r - d };
+  }
+  return { hit: false };
+}
+
+
+"use strict";
+/* Redemption's Edge — input.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   3. INPUT MANAGER
+   --------------------------------------------------------------------------- */
+const Input = {
+  keys: {},
+  mouse: { x: CFG.VIEW_W / 2, y: CFG.VIEW_H / 2, down: false, rdown: false },
+  pressed: {},        // edge-triggered this frame
+  _consumed: {},
+  init(canvas) {
+    addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (!this.keys[k]) this.pressed[k] = true;
+      this.keys[k] = true;
+      // Prevent page scroll on space / arrows
+      if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
+    });
+    addEventListener('keyup', e => { this.keys[e.key.toLowerCase()] = false; });
+    canvas.addEventListener('mousemove', e => {
+      const r = canvas.getBoundingClientRect();
+      this.mouse.x = (e.clientX - r.left) * (canvas.width / r.width);
+      this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
+    });
+    canvas.addEventListener('mousedown', e => {
+      if (e.button === 0) this.mouse.down = true;
+      if (e.button === 2) { this.mouse.rdown = true; e.preventDefault(); }
+    });
+    addEventListener('mouseup', e => {
+      if (e.button === 0) this.mouse.down = false;
+      if (e.button === 2) this.mouse.rdown = false;
+    });
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+  },
+  // Was the key pressed this frame (consumed once).
+  hit(k) {
+    if (this.pressed[k] && !this._consumed[k]) { this._consumed[k] = true; return true; }
+    return false;
+  },
+  endFrame() { this.pressed = {}; this._consumed = {}; },
+};
+
+
+"use strict";
+/* Redemption's Edge — audio.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   4. AUDIO MANAGER  —  synthesized SFX, no external files (Tier 3)
+   --------------------------------------------------------------------------- */
+const Audio = {
+  ctx: null,
+  enabled: true,
+  master: null,
+  windNode: null,
+  ensure() {
+    if (this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.5;
+      this.master.connect(this.ctx.destination);
+      this._startWind();
+    } catch (e) { this.enabled = false; }
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  // Low ambient prairie wind — a filtered noise bed.
+  _startWind() {
+    const ctx = this.ctx;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.value = 380;
+    const g = ctx.createGain(); g.gain.value = 0.05;
+    src.connect(filt); filt.connect(g); g.connect(this.master);
+    src.start();
+    this.windNode = g;
+  },
+  _env(type, freq, dur, vol, slideTo) {
+    if (!this.enabled || !this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur);
+  },
+  // Gunshot: noise burst + low thump.
+  shot() {
+    if (!this.enabled || !this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, 2);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=2200;
+    const g = ctx.createGain(); g.gain.value = 0.55;
+    src.connect(filt); filt.connect(g); g.connect(this.master);
+    src.start();
+    this._env('sine', 140, 0.18, 0.5, 55);
+  },
+  enemyShot() { this._env('square', 220, 0.12, 0.18, 90); },
+  reload() { this._env('triangle', 600, 0.05, 0.2); setTimeout(()=>this._env('triangle',900,0.05,0.2),140); },
+  hit() { this._env('sawtooth', 160, 0.12, 0.25, 60); },
+  hurt() { this._env('sawtooth', 90, 0.22, 0.3, 40); },
+  pickup() { this._env('sine', 660, 0.08, 0.25, 990); },
+  money() { this._env('sine', 880, 0.07, 0.22, 1320); },
+  click() { this._env('square', 1200, 0.03, 0.08); },
+  dash() { this._env('sine', 520, 0.16, 0.16, 180); },   // whoosh
+  lasso() { this._env('sine', 300, 0.22, 0.14, 520); },  // rope whip
+  whistle() { this._env('sine', 900, 0.18, 0.16, 1500); setTimeout(()=>this._env('sine',1300,0.16,0.14,700),120); },
+  deadeye() { this._env('sine', 240, 0.5, 0.22, 90); },  // low time-warp swell
+  // Explosion: heavy filtered noise boom + low sub thump.
+  explosion() {
+    if (!this.enabled || !this.ctx) return;
+    const ctx=this.ctx, t=ctx.currentTime;
+    const buf=ctx.createBuffer(1, ctx.sampleRate*0.4, ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,1.6);
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const filt=ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=900;
+    const g=ctx.createGain(); g.gain.value=0.7;
+    src.connect(filt); filt.connect(g); g.connect(this.master); src.start();
+    this._env('sine', 90, 0.5, 0.6, 30);
+  },
+};
+
+
+"use strict";
+/* Redemption's Edge — camera.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   5. CAMERA
+   --------------------------------------------------------------------------- */
+const Camera = {
+  x: 0, y: 0,
+  shake: 0,
+  follow(tx, ty, dt) {
+    // Smooth critically-damped follow toward target centre.
+    const targetX = clamp(tx - CFG.VIEW_W / 2, 0, CFG.WORLD_W - CFG.VIEW_W);
+    const targetY = clamp(ty - CFG.VIEW_H / 2, 0, CFG.WORLD_H - CFG.VIEW_H);
+    const k = 1 - Math.exp(-7 * dt);
+    this.x = lerp(this.x, targetX, k);
+    this.y = lerp(this.y, targetY, k);
+    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 28);
+  },
+  addShake(v) { this.shake = Math.min(16, this.shake + v); },
+  get ox() { return this.x + (this.shake ? rand(-this.shake, this.shake) : 0); },
+  get oy() { return this.y + (this.shake ? rand(-this.shake, this.shake) : 0); },
+};
+
+
+"use strict";
+/* Redemption's Edge — world.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   6. WORLD DATA
+   Buildings have a footprint rect (solid) and a door point for interaction.
+   --------------------------------------------------------------------------- */
+const TOWN_CX = 1500, TOWN_CY = 1500;   // Hicksville town centre
+const CAMP_CX = 760,  CAMP_CY = 2120;   // Darryl's outlaw camp (home base, SW of town)
+
+// HICKSVILLE — a crooked frontier town pretending to be respectable.
+// Landmarks drawn from the design bible. `action` drives the [E] interaction.
+const BUILDINGS = [
+  { name: 'The Leaning Saloon',    x: TOWN_CX-330, y: TOWN_CY-300, w: 280, h: 200, color:'#5a3d22', lean:0.04,
+    door:{x:TOWN_CX-190,y:TOWN_CY-92}, action:'rest',  label:'Wet your whistle & heal ($10)' },
+  { name: "Sheriff Crook's Office",x: TOWN_CX+90,  y: TOWN_CY-300, w: 240, h: 180, color:'#4a3320',
+    door:{x:TOWN_CX+210,y:TOWN_CY-112}, action:'sheriff', label:'Pay off your bounty' },
+  { name: 'Lucky Tooth Store',     x: TOWN_CX-300, y: TOWN_CY+120, w: 250, h: 190, color:'#54402a',
+    door:{x:TOWN_CX-175,y:TOWN_CY+118}, action:'store', label:'Buy ammo (6 for $5)' },
+  { name: 'Hicksville Bank',       x: TOWN_CX+140, y: TOWN_CY+150, w: 210, h: 165, color:'#494033',
+    door:{x:TOWN_CX+245,y:TOWN_CY+148}, action:'bank', label:'Crack the safe (raises hell)' },
+  { name: 'Undertaker & Taxidermy',x: TOWN_CX+430, y: TOWN_CY-260, w: 190, h: 160, color:'#3f3322',
+    door:{x:TOWN_CX+525,y:TOWN_CY-104}, action:'lockdoor', label:'Pick the lock' },
+  { name: 'Broken Spur Stable',    x: TOWN_CX+420, y: TOWN_CY+40,  w: 220, h: 160, color:'#4f3a24',
+    door:{x:TOWN_CX+530,y:TOWN_CY+38}, action:'none', label:'' },
+  { name: 'Abandoned Chapel',      x: TOWN_CX-560, y: TOWN_CY+360, w: 200, h: 220, color:'#4a4038', cross:true,
+    door:{x:TOWN_CX-460,y:TOWN_CY+582}, action:'chapel', label:'Pick the cellar lock' },
+];
+
+// Darryl's camp buildings — the player's home base, separate from judgemental Hicksville.
+const CAMP = [
+  { name: "Darryl's Tent", x: CAMP_CX-90, y: CAMP_CY-70, w: 180, h: 130, color:'#4a3a24', tent:true,
+    door:{x:CAMP_CX, y:CAMP_CY+62}, action:'camp', label:"Rest at camp — full heal & ammo" },
+];
+
+// Every solid + drawable structure. Collision / render / interaction iterate this.
+const STRUCTURES = BUILDINGS.concat(CAMP);
+
+// Darryl stands by the campfire. Non-combatant anchor NPC (design-bible camp leader).
+const DARRYL = { x: CAMP_CX+70, y: CAMP_CY+40, bob:0 };
+const CAMPFIRE = { x: CAMP_CX, y: CAMP_CY+40, flick:0 };
+
+// Scenery scatter (rocks, cacti, trees) — generated once at boot.
+let SCENERY = [];
+function generateScenery() {
+  SCENERY = [];
+  const types = ['rock', 'cactus', 'tree', 'shrub'];
+  for (let i = 0; i < 260; i++) {
+    const x = rand(120, CFG.WORLD_W - 120);
+    const y = rand(120, CFG.WORLD_H - 120);
+    // Keep the town square clearer of large obstacles.
+    if (Math.abs(x - TOWN_CX) < 460 && Math.abs(y - TOWN_CY) < 460) {
+      if (Math.random() < 0.7) continue;
+    }
+    const t = types[randInt(0, types.length - 1)];
+    const r = t === 'tree' ? rand(26, 40) : t === 'rock' ? rand(16, 30) : t === 'cactus' ? rand(14, 22) : rand(12, 18);
+    SCENERY.push({ type: t, x, y, r, seed: Math.random() * 1000, solid: t !== 'shrub' });
+  }
+}
+
+// Fences flanking the main street (decorative + collidable posts segments).
+const FENCES = [
+  { x: TOWN_CX-520, y: TOWN_CY-40, w: 14, h: 360 },
+  { x: TOWN_CX+506, y: TOWN_CY-40, w: 14, h: 360 },
+];
+
+/* ===========================================================================
+   MILESTONE 2 — DENSER OVERWORLD
+   PROPS      : small circular solids (town clutter + desert structures)
+   LANDMARKS  : large atmospheric features (mostly visual; some interactable)
+   SECRETS    : buried caches you dig up with [E]
+   WANTED_BOARD : readable notice board in the town square
+   =========================================================================== */
+
+// Town clutter + desert solids. Most are solid; together they form alleys & cover.
+let PROPS = [];
+function generateProps() {
+  PROPS = [];
+  const add = (type,x,y,r,solid=true,seed=0)=>PROPS.push({type,x,y,r,solid,seed:seed||Math.random()*9});
+
+  // --- Town: barrels/crates clustered by buildings to carve alleys & cover ---
+  const clusters = [
+    [TOWN_CX-470, TOWN_CY-150], [TOWN_CX-150, TOWN_CY-40], [TOWN_CX+60, TOWN_CY+40],
+    [TOWN_CX+360, TOWN_CY-120], [TOWN_CX-60, TOWN_CY+300], [TOWN_CX+300, TOWN_CY+320],
+    [TOWN_CX-360, TOWN_CY+360], [TOWN_CX+520, TOWN_CY-360],
+  ];
+  for (const [cx,cy] of clusters) {
+    const n = randInt(2,4);
+    for (let i=0;i<n;i++) {
+      const t = Math.random()<0.5?'barrel':'crate';
+      add(t, cx+rand(-34,34), cy+rand(-26,26), t==='barrel'?13:15);
+    }
+  }
+  // Hitching posts + troughs lining the main street
+  for (let i=0;i<6;i++) add('post', TOWN_CX-92, TOWN_CY-260+i*92, 6);
+  for (let i=0;i<6;i++) add('post', TOWN_CX+92, TOWN_CY-260+i*92, 6);
+  add('trough', TOWN_CX-150, TOWN_CY+180, 18);
+  add('trough', TOWN_CX+150, TOWN_CY-180, 18);
+
+  // --- Desert: abandoned wagon circle (ambush zone) ---
+  const wc = LANDMARK_POS.wagons;
+  for (let i=0;i<6;i++){ const a=i/6*TAU; add('wagon', wc.x+Math.cos(a)*120, wc.y+Math.sin(a)*120, 24, true, a); }
+  // Bone arch legs (the span is drawn as a landmark)
+  const ar = LANDMARK_POS.arch;
+  add('boneleg', ar.x-70, ar.y, 16); add('boneleg', ar.x+70, ar.y, 16);
+  // Rock spires scattered near the badlands
+  add('spire', TOWN_CX+900, TOWN_CY-1250, 30);
+  add('spire', TOWN_CX+960, TOWN_CY-1180, 22);
+  add('spire', TOWN_CX-1250, TOWN_CY-300, 28);
+}
+
+// Fixed positions shared by props + landmarks so the two stay aligned.
+const LANDMARK_POS = {
+  arch:   { x: TOWN_CX+1500, y: TOWN_CY-1150 },
+  wagons: { x: TOWN_CX-1150, y: TOWN_CY+900  },
+  shrine: { x: TOWN_CX+1350, y: TOWN_CY+1250 },
+  mine:   { x: TOWN_CX-1250, y: TOWN_CY-1050 },
+};
+
+// Large atmospheric features. `action` (if set) makes them [E]-interactable.
+const LANDMARKS = [
+  { type:'arch',     x:LANDMARK_POS.arch.x,   y:LANDMARK_POS.arch.y,   name:'The Bone Arch' },
+  { type:'wagons',   x:LANDMARK_POS.wagons.x, y:LANDMARK_POS.wagons.y, name:'Wagon Circle' },
+  { type:'shrine',   x:LANDMARK_POS.shrine.x, y:LANDMARK_POS.shrine.y, name:'Desert Shrine',
+    action:'shrine', label:'Lay a coin at the bone shrine' },
+  { type:'mine',     x:LANDMARK_POS.mine.x,   y:LANDMARK_POS.mine.y,   name:'Collapsed Mine',
+    action:'mine',   label:'Mine entrance — caved in (needs dynamite)' },
+  // Dry riverbed: a winding lighter channel (drawn as a ground decal).
+  { type:'riverbed', x:TOWN_CX-200, y:TOWN_CY-1250, name:'Dry Riverbed' },
+  // Ghost-lantern trail: floating lanterns, only visible at night. Leads to a secret.
+  { type:'ghosttrail', x:TOWN_CX+700, y:TOWN_CY+1500, name:'Ghost-Lantern Trail' },
+];
+
+// Buried caches — walk over the disturbed mound and press [E] to dig.
+let SECRETS = [];
+function resetSecrets() {
+  SECRETS = [
+    { x:LANDMARK_POS.arch.x,   y:LANDMARK_POS.arch.y+90,   found:false },
+    { x:LANDMARK_POS.wagons.x, y:LANDMARK_POS.wagons.y,    found:false },
+    { x:LANDMARK_POS.shrine.x+40, y:LANDMARK_POS.shrine.y+30, found:false },
+    { x:TOWN_CX+760, y:TOWN_CY+1720, found:false },   // end of the ghost-lantern trail
+    { x:TOWN_CX-430, y:TOWN_CY+250,  found:false },   // behind the chapel
+    { x:TOWN_CX+1900, y:TOWN_CY+200, found:false },   // out in the flats
+    { x:TOWN_CX-90,  y:TOWN_CY-1100, found:false },   // in the dry riverbed
+  ];
+  for (const lm of LANDMARKS) lm.opened = false;       // re-seal the mine etc.
+}
+
+// The town notice board — read bounties & rumors.
+const WANTED_BOARD = { x: TOWN_CX+30, y: TOWN_CY-150 };
+const RUMORS = [
+  "“They say the Bone Arch out east marks a dead man's stash.”",
+  "“Somethin' moans under the old chapel after dark. Demons, I tell ya.”",
+  "“Prospector buried his life savings by the dry riverbed and never came back.”",
+  "“The wagon circle? Ambush. Bandits picked those folks clean.”",
+  "“Follow the ghost lanterns south at night... if you got the nerve.”",
+];
+
+
+"use strict";
+/* Redemption's Edge — entities.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   7. ENTITY CLASSES
+   --------------------------------------------------------------------------- */
+class Bullet {
+  constructor(x, y, ang, speed, dmg, friendly) {
+    this.x = x; this.y = y;
+    this.vx = Math.cos(ang) * speed;
+    this.vy = Math.sin(ang) * speed;
+    this.life = CFG.BULLET_LIFE;
+    this.dmg = dmg;
+    this.friendly = friendly;    // true = fired by player
+    this.dead = false;
+    this.r = 3;
+  }
+  update(dt) {
+    const px = this.x, py = this.y;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
+    if (this.x < 0 || this.y < 0 || this.x > CFG.WORLD_W || this.y > CFG.WORLD_H) { this.dead = true; return; }
+    // Collide with solid world objects (buildings + solid scenery).
+    if (Game.hitsSolid(this.x, this.y)) {
+      this.dead = true;
+      Game.spawnImpact(px, py, 'dirt');
+    }
+  }
+  render(ctx, ox, oy) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const tx = this.x - ox, ty = this.y - oy;
+    // Tracer streak
+    ctx.strokeStyle = this.friendly ? 'rgba(255,224,150,0.9)' : 'rgba(255,150,120,0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - this.vx * 0.012, ty - this.vy * 0.012);
+    ctx.stroke();
+    ctx.fillStyle = '#fff3c4';
+    ctx.beginPath(); ctx.arc(tx, ty, this.r, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class Particle {
+  constructor(x, y, vx, vy, life, color, size, gravity) {
+    this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+    this.life=life; this.maxLife=life; this.color=color; this.size=size;
+    this.gravity = gravity || 0;
+    this.dead=false;
+  }
+  update(dt) {
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.vx *= 0.92; this.vy *= 0.92;
+    this.vy += this.gravity * dt;
+    this.life -= dt;
+    if (this.life <= 0) this.dead = true;
+  }
+  render(ctx, ox, oy) {
+    const a = clamp(this.life / this.maxLife, 0, 1);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = this.color;
+    const s = this.size * (0.4 + a * 0.6);
+    ctx.fillRect(this.x - ox - s/2, this.y - oy - s/2, s, s);
+    ctx.globalAlpha = 1;
+  }
+}
+
+class FloatText {
+  constructor(x, y, text, color) {
+    this.x=x; this.y=y; this.text=text; this.color=color||'#fff';
+    this.life=0.9; this.maxLife=0.9; this.vy=-40; this.dead=false;
+  }
+  update(dt){ this.y += this.vy*dt; this.vy*=0.96; this.life-=dt; if(this.life<=0)this.dead=true; }
+  render(ctx, ox, oy){
+    const a = clamp(this.life/this.maxLife,0,1);
+    ctx.globalAlpha=a; ctx.fillStyle=this.color;
+    ctx.font='bold 18px Georgia'; ctx.textAlign='center';
+    ctx.fillText(this.text, this.x-ox, this.y-oy);
+    ctx.globalAlpha=1;
+  }
+}
+
+class Pickup {
+  constructor(x, y, kind) {
+    this.x=x; this.y=y; this.kind=kind;  // 'ammo' | 'money'
+    this.r=11; this.dead=false; this.bob=Math.random()*TAU;
+    this.value = kind==='ammo' ? randInt(2,6) : kind==='dynamite' ? randInt(1,2) : kind==='bribe' ? 1 : randInt(5,25);
+  }
+  update(dt){ this.bob += dt*4; }
+  render(ctx, ox, oy){
+    const tx=this.x-ox, ty=this.y-oy + Math.sin(this.bob)*3;
+    ctx.save();
+    if (this.kind==='ammo') {
+      ctx.fillStyle='#caa14a';
+      ctx.strokeStyle='#5a3d1a'; ctx.lineWidth=2;
+      ctx.fillRect(tx-7, ty-6, 14, 12);
+      ctx.strokeRect(tx-7, ty-6, 14, 12);
+      ctx.fillStyle='#3a2a14';
+      ctx.fillRect(tx-4, ty-3, 3, 6); ctx.fillRect(tx+1, ty-3, 3, 6);
+    } else if (this.kind==='dynamite') {
+      ctx.fillStyle='#a02a1a'; ctx.strokeStyle='#5a160c'; ctx.lineWidth=2;
+      ctx.fillRect(tx-7,ty-5,14,10); ctx.strokeRect(tx-7,ty-5,14,10);
+      ctx.strokeStyle='#caa14a'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(tx+5,ty-5); ctx.lineTo(tx+8,ty-10); ctx.stroke();
+      ctx.fillStyle='#ffd25a'; ctx.beginPath(); ctx.arc(tx+8,ty-10,2,0,TAU); ctx.fill();
+    } else if (this.kind==='bribe') {
+      // tin sheriff's-star badge
+      ctx.fillStyle='#cfd6dd'; ctx.strokeStyle='#6a7078'; ctx.lineWidth=1.5;
+      ctx.beginPath();
+      for (let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?3.5:8.5; ctx.lineTo(tx+Math.cos(a)*rr, ty+Math.sin(a)*rr); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#6a7078'; ctx.beginPath(); ctx.arc(tx,ty,1.6,0,TAU); ctx.fill();
+    } else {
+      ctx.fillStyle='#d8c463'; ctx.strokeStyle='#7a6420'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(tx,ty,8,0,TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#7a6420'; ctx.font='bold 10px Georgia'; ctx.textAlign='center';
+      ctx.fillText('$', tx, ty+3.5);
+    }
+    ctx.restore();
+  }
+}
+
+// A thrown stick of dynamite — slides, fuses down, then asks Game to detonate.
+class Dynamite {
+  constructor(x, y, ang, speed) {
+    this.x=x; this.y=y;
+    this.vx=Math.cos(ang)*speed; this.vy=Math.sin(ang)*speed;
+    this.fuse=CFG.DYN_FUSE; this.spin=rand(0,TAU); this.r=6; this.dead=false;
+  }
+  update(dt) {
+    const nx=this.x+this.vx*dt, ny=this.y+this.vy*dt;
+    if (Game.hitsSolid(nx,ny)) { this.vx*=-0.35; this.vy*=-0.35; }   // bounce off walls
+    else { this.x=nx; this.y=ny; }
+    const f=Math.exp(-3.2*dt); this.vx*=f; this.vy*=f;               // slide to a stop
+    this.spin += dt*12;
+    this.fuse -= dt;
+    if (Math.random()<0.6) Game.particles.push(new Particle(this.x,this.y-4,rand(-12,12),rand(-40,-12),0.4,'rgba(140,140,140,0.6)',3));
+    if (this.fuse<=0) { this.dead=true; Game.spawnExplosion(this.x,this.y); }
+  }
+  render(ctx, ox, oy) {
+    const tx=this.x-ox, ty=this.y-oy;
+    ctx.save(); ctx.translate(tx,ty); ctx.rotate(this.spin);
+    ctx.fillStyle='#a02a1a'; ctx.fillRect(-9,-4,18,8);     // red stick
+    ctx.fillStyle='#2a1a10'; ctx.fillRect(-9,-4,3,8);
+    ctx.restore();
+    // Sparking fuse — blinks faster as it nears zero
+    const blink = (this.fuse < 0.4) ? (Math.floor(this.fuse*20)%2===0) : true;
+    if (blink) { ctx.fillStyle='#ffd25a'; ctx.beginPath(); ctx.arc(tx, ty-7, 2.5, 0, TAU); ctx.fill(); }
+  }
+}
+
+// Purely-visual blast (damage is applied once by Game.spawnExplosion).
+class Explosion {
+  constructor(x,y){ this.x=x; this.y=y; this.t=0; this.life=0.42; this.r=CFG.DYN_RADIUS; this.dead=false; }
+  update(dt){ this.t+=dt; if(this.t>=this.life) this.dead=true; }
+  render(ctx, ox, oy){
+    const tx=this.x-ox, ty=this.y-oy;
+    const p=this.t/this.life;
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    // expanding shockwave ring
+    ctx.globalAlpha=(1-p)*0.9; ctx.strokeStyle='#ffb347'; ctx.lineWidth=6*(1-p)+1;
+    ctx.beginPath(); ctx.arc(tx,ty,this.r*p,0,TAU); ctx.stroke();
+    // bright core flash
+    ctx.globalAlpha=(1-p)*0.8; ctx.fillStyle='#fff0c0';
+    ctx.beginPath(); ctx.arc(tx,ty,this.r*0.5*(1-p)+6,0,TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+class Player {
+  constructor(x, y) {
+    this.x=x; this.y=y; this.vx=0; this.vy=0;
+    this.r=CFG.PLAYER_RADIUS;
+    this.hp=CFG.PLAYER_MAX_HP;
+    this.ammo=CFG.CYLINDER;
+    this.money=35;
+    this.aim=0;
+    this.fireTimer=0;
+    this.reloading=false;
+    this.reloadTimer=0;
+    this.recoil=0;       // visual kick
+    this.mounted=null;   // Horse reference when riding
+    this.hurtFlash=0;
+    this.dead=false;
+    this.facing=1;
+    this.walkCycle=0;
+    // Milestone 1 — dash / dodge
+    this.dashTimer=0;    // >0 while the burst is active
+    this.dashCool=0;     // cooldown remaining
+    this.invuln=0;       // i-frames remaining (damage ignored while >0)
+    this.dashDX=1; this.dashDY=0;
+    this.trail=[];       // afterimage samples {x,y,a}
+    // Milestone 1 — dynamite
+    this.dynamite=CFG.DYN_START;
+    // Milestone 3 — tools (Chris rides in already carrying his kit)
+    this.hasLasso=true; this.hasLockpick=true; this.hasWhistle=true;
+    this.lassoTimer=0;
+    this.lassoAnim=null;                 // transient rope visual {tx,ty,t}
+    this.deadeye=CFG.DEADEYE_MAX*0.5;    // meter, starts half-charged
+    this.deadeyeActive=false;
+  }
+  get dashing() { return this.dashTimer > 0; }
+  get speed() { return this.mounted ? CFG.HORSE_MAX_SPEED : CFG.PLAYER_MAX_SPEED; }
+  get accel() { return this.mounted ? CFG.HORSE_ACCEL : CFG.PLAYER_ACCEL; }
+
+  update(dt) {
+    // --- Aim toward mouse (world-space) ---
+    const mwx = Input.mouse.x + Camera.x;
+    const mwy = Input.mouse.y + Camera.y;
+    this.aim = angTo(this.x, this.y, mwx, mwy);
+    if (Math.cos(this.aim) < 0) this.facing = -1; else this.facing = 1;
+
+    // --- Movement input with acceleration & friction (weighty feel) ---
+    let ix=0, iy=0;
+    if (Input.keys['w'] || Input.keys['arrowup'])    iy -= 1;
+    if (Input.keys['s'] || Input.keys['arrowdown'])  iy += 1;
+    if (Input.keys['a'] || Input.keys['arrowleft'])  ix -= 1;
+    if (Input.keys['d'] || Input.keys['arrowright'])  ix += 1;
+    const ilen = Math.hypot(ix, iy);
+    const il = ilen || 1;
+    ix/=il; iy/=il;
+
+    // --- Dash trigger (Shift) — on foot only; horse is already fast ---
+    if (this.dashCool>0) this.dashCool -= dt;
+    if (Input.hit('shift') && this.dashCool<=0 && this.dashTimer<=0 && !this.mounted) {
+      // Dash in the movement direction, or toward the aim if standing still.
+      if (ilen>0) { this.dashDX=ix; this.dashDY=iy; }
+      else { this.dashDX=Math.cos(this.aim); this.dashDY=Math.sin(this.aim); }
+      this.dashTimer=CFG.DASH_TIME; this.invuln=CFG.DASH_IFRAMES; this.dashCool=CFG.DASH_COOLDOWN;
+      Audio.dash();
+    }
+
+    if (this.dashTimer>0) {
+      // Velocity is overridden by the dash burst.
+      this.dashTimer -= dt;
+      this.vx = this.dashDX * CFG.DASH_SPEED;
+      this.vy = this.dashDY * CFG.DASH_SPEED;
+      // Leave afterimages
+      this.trail.push({x:this.x, y:this.y, a:1});
+    } else {
+      this.vx += ix * this.accel * dt;
+      this.vy += iy * this.accel * dt;
+      // Friction when no input
+      const fr = Math.exp(-CFG.PLAYER_FRICTION * dt);
+      if (ix===0) this.vx *= fr;
+      if (iy===0) this.vy *= fr;
+      // Clamp to max speed
+      const sp = Math.hypot(this.vx, this.vy);
+      if (sp > this.speed) { this.vx = this.vx/sp*this.speed; this.vy = this.vy/sp*this.speed; }
+    }
+    // Fade afterimage trail
+    for (const t of this.trail) t.a -= dt*3.5;
+    this.trail = this.trail.filter(t=>t.a>0);
+    if (this.invuln>0) this.invuln -= dt;
+
+    const moving = Math.hypot(ix,iy) > 0;
+    if (moving) this.walkCycle += dt * (this.mounted ? 14 : 9);
+
+    // Integrate + resolve collisions
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.resolveCollisions();
+    this.x = clamp(this.x, this.r, CFG.WORLD_W - this.r);
+    this.y = clamp(this.y, this.r, CFG.WORLD_H - this.r);
+    if (this.mounted) { this.mounted.x = this.x; this.mounted.y = this.y; this.mounted.aim = this.aim; }
+
+    // --- Weapon timers ---
+    if (this.fireTimer > 0) this.fireTimer -= dt;
+    if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - dt*6);
+    if (this.reloading) {
+      this.reloadTimer -= dt;
+      if (this.reloadTimer <= 0) { this.reloading=false; this.ammo=CFG.CYLINDER; }
+    }
+    if (this.hurtFlash > 0) this.hurtFlash -= dt;
+
+    // --- Actions ---
+    const wantFire = (Input.mouse.down || Input.keys[' ']);
+    if (wantFire && this.fireTimer<=0 && !this.reloading && this.ammo>0) this.fire();
+    if (Input.hit('r') && !this.reloading && this.ammo < CFG.CYLINDER) {
+      this.reloading=true; this.reloadTimer=CFG.RELOAD_TIME; Audio.reload();
+    }
+    // Auto-reload on empty trigger pull
+    if (wantFire && this.ammo===0 && !this.reloading) {
+      this.reloading=true; this.reloadTimer=CFG.RELOAD_TIME; Audio.reload();
+    }
+    // Throw dynamite (Q)
+    if (Input.hit('q') && this.dynamite>0) this.throwDynamite();
+
+    // --- Milestone 3 tools ---
+    // Lasso (F)
+    if (this.lassoTimer>0) this.lassoTimer -= dt;
+    if (Input.hit('f') && this.hasLasso && this.lassoTimer<=0) this.throwLasso();
+    if (this.lassoAnim) { this.lassoAnim.t -= dt; if (this.lassoAnim.t<=0) this.lassoAnim=null; }
+    // Horse whistle (H)
+    if (Input.hit('h') && this.hasWhistle && !this.mounted) this.summonHorse();
+    // Dead Eye (hold Right Mouse) — drains meter, regens slowly otherwise
+    const wantDeadeye = Input.mouse.rdown;
+    if (wantDeadeye && !this.deadeyeActive && this.deadeye>=CFG.DEADEYE_MIN) { this.deadeyeActive=true; Audio.deadeye(); }
+    if (this.deadeyeActive) {
+      this.deadeye = Math.max(0, this.deadeye - CFG.DEADEYE_DRAIN*dt);
+      if (!wantDeadeye || this.deadeye<=0) this.deadeyeActive=false;
+    } else {
+      this.deadeye = Math.min(CFG.DEADEYE_MAX, this.deadeye + CFG.DEADEYE_REGEN*dt);
+    }
+  }
+
+  throwLasso() {
+    this.lassoTimer = CFG.LASSO_COOLDOWN;
+    Audio.lasso();
+    const R = CFG.LASSO_RANGE, ca=Math.cos(this.aim), sa=Math.sin(this.aim);
+    // Catch the first enemy lying along the rope line.
+    let caught=null, bestT=1.01;
+    for (const e of Game.enemies) {
+      if (e.dead) continue;
+      const t = clamp(((e.x-this.x)*ca + (e.y-this.y)*sa)/R, 0, 1);
+      const px=this.x+ca*R*t, py=this.y+sa*R*t;
+      if (dist(px,py,e.x,e.y) < e.r+18 && t<bestT) { bestT=t; caught=e; }
+    }
+    let tipX=this.x+ca*R, tipY=this.y+sa*R;
+    if (caught) {
+      tipX=caught.x; tipY=caught.y;
+      caught.stun = CFG.LASSO_STUN;
+      caught.applyKnockback(angTo(caught.x,caught.y,this.x,this.y), CFG.LASSO_PULL);
+      Game.floats.push(new FloatText(caught.x, caught.y-18, 'ROPED!', '#e8d56a'));
+    } else {
+      // No enemy — vacuum any loot near the rope toward you (auto-collected next frame).
+      for (const pk of Game.pickups) {
+        const t = clamp(((pk.x-this.x)*ca + (pk.y-this.y)*sa)/R, 0, 1);
+        const px=this.x+ca*R*t, py=this.y+sa*R*t;
+        if (dist(px,py,pk.x,pk.y) < CFG.LASSO_GRAB) { pk.x=this.x; pk.y=this.y; }
+      }
+    }
+    this.lassoAnim = { tx:tipX, ty:tipY, t:0.22 };
+  }
+
+  summonHorse() {
+    let best=null, bd=1e9;
+    for (const h of Game.horses) { if (h.ridden) continue; const d=dist(this.x,this.y,h.x,h.y); if (d<bd){bd=d;best=h;} }
+    if (best) { best.summoning=true; Audio.whistle(); Game.flashMsg('You whistle sharp — your horse comes running.'); }
+    else Game.flashMsg('No loose horse to call.');
+  }
+
+  throwDynamite() {
+    this.dynamite--;
+    const sx = this.x + Math.cos(this.aim)*22;
+    const sy = this.y + Math.sin(this.aim)*22;
+    Game.dynamites.push(new Dynamite(sx, sy, this.aim, CFG.DYN_THROW_SPEED));
+    Audio.click();
+    Wanted.onPlayerShot(this.x, this.y);   // lighting a fuse in town draws eyes too
+  }
+
+  resolveCollisions() {
+    // Buildings + camp structures
+    for (const b of STRUCTURES) {
+      const c = circleRect(this.x, this.y, this.r, b.x, b.y, b.w, b.h);
+      if (c.hit) { this.x += c.nx*c.pen; this.y += c.ny*c.pen; this.vx*=0.3; this.vy*=0.3; }
+    }
+    for (const f of FENCES) {
+      const c = circleRect(this.x, this.y, this.r, f.x, f.y, f.w, f.h);
+      if (c.hit) { this.x += c.nx*c.pen; this.y += c.ny*c.pen; }
+    }
+    // Solid scenery + props (circular obstacles)
+    for (const arr of [SCENERY, PROPS]) {
+      for (const s of arr) {
+        if (!s.solid) continue;
+        const sr = (arr===PROPS) ? s.r*0.8 : s.r*0.7;
+        const rr = this.r + sr;
+        if (dist2(this.x,this.y,s.x,s.y) < rr*rr) {
+          const a = angTo(s.x, s.y, this.x, this.y);
+          const d = dist(this.x,this.y,s.x,s.y) || 0.001;
+          const pen = rr - d;
+          this.x += Math.cos(a)*pen; this.y += Math.sin(a)*pen;
+        }
+      }
+    }
+  }
+
+  fire() {
+    this.ammo--;
+    this.fireTimer = CFG.FIRE_COOLDOWN;
+    this.recoil = 1;
+    const muzzleX = this.x + Math.cos(this.aim) * 26;
+    const muzzleY = this.y + Math.sin(this.aim) * 26;
+    const spread = (Math.random()-0.5) * CFG.BULLET_SPREAD_PLAYER * 2;
+    const dmg = CFG.BULLET_DMG * (this.deadeyeActive ? CFG.DEADEYE_DMG : 1);
+    Game.bullets.push(new Bullet(muzzleX, muzzleY, this.aim + spread, CFG.BULLET_SPEED, dmg, true));
+    Game.spawnMuzzle(muzzleX, muzzleY, this.aim);
+    Camera.addShake(4);
+    Audio.shot();
+    // Knockback / recoil push
+    this.vx -= Math.cos(this.aim) * 40;
+    this.vy -= Math.sin(this.aim) * 40;
+    Wanted.onPlayerShot(this.x, this.y);
+  }
+
+  takeDamage(d) {
+    if (this.invuln>0) return;          // dodged it — i-frames
+    this.hp -= d;
+    this.hurtFlash = 0.35;
+    Camera.addShake(6);
+    Audio.hurt();
+    if (this.hp <= 0) { this.hp=0; this.dead=true; }
+  }
+
+  render(ctx, ox, oy) {
+    const tx=this.x-ox, ty=this.y-oy;
+    // Dash afterimages (drawn under the player)
+    for (const t of this.trail) {
+      ctx.globalAlpha = t.a*0.4;
+      ctx.fillStyle = '#e8d5a8';
+      ctx.beginPath(); ctx.ellipse(t.x-ox, t.y-oy, 12, 14, 0, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(tx, ty+12, 16, 7, 0, 0, TAU); ctx.fill();
+
+    if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
+
+    // Flicker while invulnerable (skip some frames) so the dodge reads visually.
+    if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;
+    drawGunslinger(ctx, tx, ty, this.aim, this.recoil, this.walkCycle,
+                   this.hurtFlash>0, this.mounted!=null);
+    ctx.globalAlpha = 1;
+
+    // Lasso rope (transient)
+    if (this.lassoAnim) {
+      const a = clamp(this.lassoAnim.t/0.22, 0, 1);
+      const lx = this.lassoAnim.tx-ox, ly = this.lassoAnim.ty-oy;
+      ctx.save(); ctx.globalAlpha=a; ctx.strokeStyle='#d8b483'; ctx.lineWidth=2.5; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(tx,ty-2); ctx.lineTo(lx,ly); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(lx,ly,8,5,this.aim,0,TAU); ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+// Generic AI gunman (bandit / enforcer / lawman share this class with params).
+class Enemy {
+  constructor(x, y, kind) {
+    this.x=x; this.y=y; this.vx=0; this.vy=0;
+    this.kind=kind; // 'bandit' | 'enforcer' | 'lawman'
+    this.r=CFG.ENEMY_RADIUS;
+    if (kind==='enforcer') { this.hp=CFG.ENFORCER_HP; this.maxhp=CFG.ENFORCER_HP; this.speed=CFG.ENFORCER_SPEED; this.dmg=CFG.ENFORCER_DMG; this.r=16; }
+    else if (kind==='lawman') { this.hp=CFG.LAWMAN_HP; this.maxhp=CFG.LAWMAN_HP; this.speed=CFG.LAWMAN_SPEED; this.dmg=CFG.ENEMY_BULLET_DMG+3; }
+    else { this.hp=CFG.ENEMY_HP; this.maxhp=CFG.ENEMY_HP; this.speed=CFG.ENEMY_SPEED; this.dmg=CFG.ENEMY_BULLET_DMG; }
+    // Apply difficulty scaling (Easy = ×1, the original M1 feel).
+    const D = DIFFICULTY[Game.difficulty];
+    this.hp *= D.hp; this.maxhp = this.hp; this.dmg *= D.dmg;
+    this.fireMul = D.fireRate;   // multiplies fire cooldown (lower = shoots more)
+    this.windupMul = D.windup;   // multiplies the attack-tell length (lower = harder)
+    this.aim=rand(0,TAU);
+    this.state='idle';    // AI states: idle | patrol | chase | attack
+    this.fireTimer=rand(0,CFG.ENEMY_FIRE_COOLDOWN);
+    this.patrolT=0; this.patrolDir=rand(0,TAU);
+    this.dead=false; this.recoil=0; this.hurtFlash=0; this.walkCycle=0;
+    this.windup=0;             // >0 = telegraphing a shot (attack tell)
+    this.knockVX=0; this.knockVY=0;  // explosion/bullet knockback impulse
+    this.stun=0;               // >0 = roped/stunned, can't act (lasso)
+    this.home={x,y};
+  }
+  applyKnockback(ang, force) { this.knockVX += Math.cos(ang)*force; this.knockVY += Math.sin(ang)*force; }
+
+  update(dt, player) {
+    // Roped/stunned: can't steer or shoot, but the yank (knockback) still drags them.
+    if (this.stun>0) {
+      this.stun -= dt;
+      this.vx *= Math.exp(-6*dt); this.vy *= Math.exp(-6*dt);
+      this.x += this.knockVX*dt; this.y += this.knockVY*dt;
+      const kd=Math.exp(-9*dt); this.knockVX*=kd; this.knockVY*=kd;
+      this.resolveCollisions();
+      this.x = clamp(this.x, this.r, CFG.WORLD_W-this.r);
+      this.y = clamp(this.y, this.r, CFG.WORLD_H-this.r);
+      if (this.recoil>0) this.recoil=Math.max(0,this.recoil-dt*6);
+      if (this.hurtFlash>0) this.hurtFlash-=dt;
+      this.windup=0;
+      return;
+    }
+    const dToPlayer = dist(this.x,this.y,player.x,player.y);
+    // Lawmen won't hunt you inside the camp safe haven — they give up at the edge.
+    const campSafe = this.kind==='lawman' && Game.playerInCamp();
+    const canSee = !campSafe && dToPlayer < CFG.ENEMY_VIEW && Game.lineOfSight(this.x,this.y,player.x,player.y);
+
+    // ---- AI STATE MACHINE ----
+    // idle/patrol → wander near home. chase → close distance. attack → shoot.
+    if (player.dead) { this.state='idle'; }
+    else if (canSee) {
+      this.state = dToPlayer < CFG.ENEMY_SHOOT_RANGE ? 'attack' : 'chase';
+      this.aim = angTo(this.x,this.y,player.x,player.y);
+    } else if (this.state==='chase' || this.state==='attack') {
+      // Lost sight → brief pursuit toward last seen, then back to patrol.
+      this.state='patrol'; this.patrolT=0; this.patrolDir=this.aim;
+    }
+
+    let mx=0, my=0;
+    switch(this.state) {
+      case 'idle':
+        this.patrolT -= dt;
+        if (this.patrolT <= 0) { this.state='patrol'; this.patrolT=rand(1.5,3.5); this.patrolDir=rand(0,TAU); }
+        break;
+      case 'patrol':
+        this.patrolT -= dt;
+        mx=Math.cos(this.patrolDir); my=Math.sin(this.patrolDir);
+        // Stay near home territory
+        if (dist(this.x,this.y,this.home.x,this.home.y) > 320) {
+          this.patrolDir = angTo(this.x,this.y,this.home.x,this.home.y);
+        }
+        if (this.patrolT<=0) { this.state='idle'; this.patrolT=rand(1,2.5); }
+        break;
+      case 'chase':
+        mx=Math.cos(this.aim); my=Math.sin(this.aim);
+        break;
+      case 'attack': {
+        // Maintain a firing distance: strafe if too close, advance if far.
+        const ideal = CFG.ENEMY_SHOOT_RANGE * 0.6;
+        if (dToPlayer > ideal+40) { mx=Math.cos(this.aim); my=Math.sin(this.aim); }
+        else if (dToPlayer < ideal-60) { mx=-Math.cos(this.aim); my=-Math.sin(this.aim); }
+        else { // strafe
+          mx=Math.cos(this.aim+Math.PI/2)*0.6; my=Math.sin(this.aim+Math.PI/2)*0.6;
+        }
+        // Attack tell: wind up (brace, aim line shows) before the shot lands — fair, readable.
+        if (this.windup>0) {
+          this.windup -= dt;
+          mx*=0.25; my*=0.25;            // plant feet while aiming
+          if (this.windup<=0) { this.shoot(player); this.fireTimer = CFG.ENEMY_FIRE_COOLDOWN * this.fireMul * rand(0.85,1.3); }
+        } else {
+          this.fireTimer -= dt;
+          if (this.fireTimer<=0) this.windup = CFG.ENEMY_WINDUP * this.windupMul;
+        }
+        break;
+      }
+    }
+
+    const spd = this.speed * (this.state==='patrol'?0.5:1);
+    this.vx = lerp(this.vx, mx*spd, 1-Math.exp(-8*dt));
+    this.vy = lerp(this.vy, my*spd, 1-Math.exp(-8*dt));
+    this.x += this.vx*dt; this.y += this.vy*dt;
+    // Knockback impulse rides on top of AI steering, then decays fast.
+    this.x += this.knockVX*dt; this.y += this.knockVY*dt;
+    const kd = Math.exp(-9*dt);
+    this.knockVX *= kd; this.knockVY *= kd;
+    if (Math.hypot(mx,my)>0.1) this.walkCycle += dt*8;
+
+    this.resolveCollisions();
+    this.x = clamp(this.x, this.r, CFG.WORLD_W-this.r);
+    this.y = clamp(this.y, this.r, CFG.WORLD_H-this.r);
+
+    if (this.recoil>0) this.recoil=Math.max(0,this.recoil-dt*6);
+    if (this.hurtFlash>0) this.hurtFlash-=dt;
+  }
+
+  resolveCollisions() {
+    for (const b of STRUCTURES) {
+      const c = circleRect(this.x,this.y,this.r,b.x,b.y,b.w,b.h);
+      if (c.hit) { this.x+=c.nx*c.pen; this.y+=c.ny*c.pen; }
+    }
+    for (const arr of [SCENERY, PROPS]) {
+      for (const s of arr) {
+        if (!s.solid) continue;
+        const rr=this.r+((arr===PROPS)?s.r*0.8:s.r*0.7);
+        if (dist2(this.x,this.y,s.x,s.y) < rr*rr) {
+          const a=angTo(s.x,s.y,this.x,this.y);
+          const pen=rr-(dist(this.x,this.y,s.x,s.y)||0.001);
+          this.x+=Math.cos(a)*pen; this.y+=Math.sin(a)*pen;
+        }
+      }
+    }
+  }
+
+  shoot(player) {
+    this.recoil=1;
+    const mx=this.x+Math.cos(this.aim)*22, my=this.y+Math.sin(this.aim)*22;
+    const spread=(Math.random()-0.5)*CFG.ENEMY_SPREAD*2;
+    Game.bullets.push(new Bullet(mx,my,this.aim+spread,CFG.ENEMY_BULLET_SPEED,this.dmg,false));
+    Game.spawnMuzzle(mx,my,this.aim);
+    Audio.enemyShot();
+  }
+
+  takeDamage(d) {
+    this.hp-=d; this.hurtFlash=0.25;
+    Game.spawnImpact(this.x,this.y,'blood');
+    Audio.hit();
+    if (this.hp<=0 && !this.dead) { this.dead=true; Game.onEnemyKilled(this); }
+  }
+
+  render(ctx, ox, oy) {
+    const tx=this.x-ox, ty=this.y-oy;
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(tx,ty+11,14,6,0,0,TAU); ctx.fill();
+    const palette = this.kind==='lawman'
+      ? {coat:'#3a4a6a', hat:'#1c2436', skin:'#caa07a'}
+      : this.kind==='enforcer'
+      ? {coat:'#5a2a2a', hat:'#2a1414', skin:'#b89070'}
+      : {coat:'#4a3a28', hat:'#241a10', skin:'#c0a080'};
+    // Attack tell — a charging aim line the player can read and dodge.
+    if (this.windup>0) {
+      const charge = 1 - this.windup/CFG.ENEMY_WINDUP;   // 0→1 as it builds
+      const len = 40 + charge*CFG.ENEMY_SHOOT_RANGE*0.5;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + charge*0.45;
+      ctx.strokeStyle = '#ff5a3a'; ctx.lineWidth = 1.5;
+      ctx.setLineDash([6,5]);
+      ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx+Math.cos(this.aim)*len, ty+Math.sin(this.aim)*len); ctx.stroke();
+      ctx.setLineDash([]);
+      // muzzle "charge" dot that brightens
+      ctx.globalAlpha = charge;
+      ctx.fillStyle='#ffd25a';
+      ctx.beginPath(); ctx.arc(tx+Math.cos(this.aim)*22, ty+Math.sin(this.aim)*22, 2+charge*2, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0, palette);
+    // Roped/stunned — spinning stars over the head
+    if (this.stun>0) {
+      ctx.save(); ctx.fillStyle='#e8d56a'; ctx.font='11px Georgia'; ctx.textAlign='center';
+      for (let i=0;i<3;i++){ const a=Game.time*6 + i*TAU/3; ctx.fillText('★', tx+Math.cos(a)*9, ty-30+Math.sin(a)*4); }
+      ctx.restore();
+    }
+    // HP bar when damaged
+    if (this.hp < this.maxhp) {
+      const w=30, h=4;
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(tx-w/2, ty-26, w, h);
+      ctx.fillStyle = this.kind==='lawman'?'#6a86c8':'#b54';
+      ctx.fillRect(tx-w/2, ty-26, w*(this.hp/this.maxhp), h);
+    }
+    // Star badge for lawmen
+    if (this.kind==='lawman') {
+      ctx.fillStyle='#e8d56a'; ctx.font='10px Georgia'; ctx.textAlign='center';
+      ctx.fillText('★', tx, ty-30);
+    }
+  }
+}
+
+class Townsfolk {
+  constructor(x,y) {
+    this.x=x; this.y=y; this.r=12; this.dead=false;
+    this.path=[]; this.t=0; this.target={x,y};
+    this.color = ['#6a5a45','#5a4a3a','#7a6a55','#4a5a4a'][randInt(0,3)];
+    this.walkCycle=0; this.aim=0; this.fleeing=false;
+  }
+  newTarget() {
+    this.target = { x: clamp(this.x+rand(-200,200),TOWN_CX-420,TOWN_CX+420),
+                    y: clamp(this.y+rand(-200,200),TOWN_CY-420,TOWN_CY+420) };
+  }
+  update(dt, player) {
+    if (this.fleeing) {
+      this.aim = angTo(player.x,player.y,this.x,this.y);
+    } else {
+      this.t -= dt;
+      if (this.t<=0 || dist(this.x,this.y,this.target.x,this.target.y)<20) { this.newTarget(); this.t=rand(2,5); }
+      this.aim = angTo(this.x,this.y,this.target.x,this.target.y);
+    }
+    const spd = this.fleeing?150:48;
+    this.x += Math.cos(this.aim)*spd*dt;
+    this.y += Math.sin(this.aim)*spd*dt;
+    this.walkCycle += dt*7;
+  }
+  takeDamage(d){ this.dead=true; Game.spawnImpact(this.x,this.y,'blood'); Wanted.onCivilianKilled(); Audio.hit(); }
+  render(ctx,ox,oy){
+    const tx=this.x-ox,ty=this.y-oy;
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(tx,ty+10,11,5,0,0,TAU); ctx.fill();
+    drawTownsfolk(ctx,tx,ty,this.aim,this.walkCycle,this.color);
+  }
+}
+
+class Horse {
+  constructor(x,y) { this.x=x; this.y=y; this.aim=0; this.ridden=false; this.summoning=false; }
+  update(dt) {
+    // Horse-whistle: gallop toward the player until close, kicking up dust.
+    if (this.ridden || !this.summoning) return;
+    const p = Game.player;
+    if (dist(this.x,this.y,p.x,p.y) < 46) { this.summoning=false; return; }   // stops within mount range
+    const a = angTo(this.x,this.y,p.x,p.y); this.aim=a;
+    this.x += Math.cos(a)*CFG.WHISTLE_GALLOP*dt;
+    this.y += Math.sin(a)*CFG.WHISTLE_GALLOP*dt;
+    if (Math.random()<0.6) Game.particles.push(new Particle(this.x,this.y+6,rand(-25,25),rand(-8,8),0.4,'rgba(150,130,90,0.5)',4));
+  }
+  renderBody(ctx, tx, ty) {
+    // Drawn beneath the rider when mounted, or standalone when idle.
+    ctx.save();
+    ctx.translate(tx,ty);
+    ctx.rotate(this.aim);
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(0,8,30,12,0,0,TAU); ctx.fill();
+    ctx.fillStyle='#3a2817';
+    ctx.beginPath(); ctx.ellipse(0,0,30,15,0,0,TAU); ctx.fill();    // body
+    ctx.fillStyle='#2e2012';
+    ctx.beginPath(); ctx.ellipse(26,-2,12,8,0,0,TAU); ctx.fill();   // head/neck
+    ctx.fillStyle='#1c130a';
+    ctx.fillRect(-26,-2,8,4);  // tail base
+    ctx.restore();
+  }
+  render(ctx,ox,oy){ // standalone idle horse
+    if (this.ridden) return;
+    const tx=this.x-ox, ty=this.y-oy;
+    this.renderBody(ctx,tx,ty);
+    // Saddle marker
+    ctx.fillStyle='#6a4a28';
+    ctx.beginPath(); ctx.arc(tx,ty,6,0,TAU); ctx.fill();
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   PROCEDURAL CHARACTER ART
+   --------------------------------------------------------------------------- */
+function drawGunslinger(ctx, x, y, aim, recoil, walk, hurt, mounted) {
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = mounted ? 0 : Math.sin(walk)*1.5;
+  ctx.translate(0, bob);
+
+  // Long coat (body)
+  ctx.fillStyle = hurt ? '#b86a4a' : '#6b4a2a';
+  ctx.beginPath(); ctx.ellipse(0, 2, 13, 16, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = hurt ? '#a85a3a' : '#553a20';
+  ctx.beginPath(); ctx.ellipse(0, 6, 11, 12, 0, 0, TAU); ctx.fill();
+
+  // Arm + revolver pointing toward aim
+  const recoilKick = recoil * 4;
+  const gx = Math.cos(aim) * (20 - recoilKick);
+  const gy = Math.sin(aim) * (20 - recoilKick);
+  ctx.strokeStyle = hurt ? '#b86a4a' : '#4a3320';
+  ctx.lineWidth = 7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(gx,gy); ctx.stroke();
+  // Revolver
+  ctx.save();
+  ctx.translate(gx, gy); ctx.rotate(aim);
+  ctx.fillStyle='#2a2a2e';
+  ctx.fillRect(0,-2.5,14,5);
+  ctx.fillStyle='#1a1a1e';
+  ctx.fillRect(-2,1,5,7);  // grip
+  ctx.restore();
+
+  // Head + hat
+  ctx.fillStyle = hurt ? '#e0a080' : '#c89a72';
+  ctx.beginPath(); ctx.arc(0,-2,8,0,TAU); ctx.fill();
+  // Hat brim
+  ctx.fillStyle='#2a1d10';
+  ctx.beginPath(); ctx.ellipse(0,-4,14,6,0,0,TAU); ctx.fill();
+  ctx.fillStyle='#3a2a18';
+  ctx.beginPath(); ctx.ellipse(0,-7,8,6,0,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+function drawBandit(ctx, x, y, aim, recoil, walk, hurt, pal) {
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.translate(0, Math.sin(walk)*1.5);
+  ctx.fillStyle = hurt ? '#d88' : pal.coat;
+  ctx.beginPath(); ctx.ellipse(0,2,12,15,0,0,TAU); ctx.fill();
+  // arm + gun
+  const gx=Math.cos(aim)*(18-recoil*3), gy=Math.sin(aim)*(18-recoil*3);
+  ctx.strokeStyle = hurt? '#d88' : pal.coat;
+  ctx.lineWidth=6; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(gx,gy); ctx.stroke();
+  ctx.save(); ctx.translate(gx,gy); ctx.rotate(aim);
+  ctx.fillStyle='#222'; ctx.fillRect(0,-2,11,4); ctx.restore();
+  // head + hat
+  ctx.fillStyle = hurt ? '#f0b090' : pal.skin;
+  ctx.beginPath(); ctx.arc(0,-2,7,0,TAU); ctx.fill();
+  ctx.fillStyle = pal.hat;
+  ctx.beginPath(); ctx.ellipse(0,-4,12,5,0,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,-7,7,5,0,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+function drawTownsfolk(ctx, x, y, aim, walk, color) {
+  ctx.save(); ctx.translate(x,y);
+  ctx.translate(0, Math.sin(walk)*1.2);
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.ellipse(0,2,10,13,0,0,TAU); ctx.fill();
+  ctx.fillStyle='#c89a72';
+  ctx.beginPath(); ctx.arc(0,-3,6,0,TAU); ctx.fill();
+  ctx.fillStyle='#3a2a1a';
+  ctx.beginPath(); ctx.ellipse(0,-5,8,4,0,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------------------
+   8. COLLISION HELPERS  (used by Game / bullets / AI line of sight)
+   --------------------------------------------------------------------------- */
+// (circleRect defined above; Game.hitsSolid + lineOfSight below.)
+
+
+"use strict";
+/* Redemption's Edge — systems.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   9. WANTED-LEVEL SYSTEM
+   Tracks the law's interest in the player. Crimes raise it; lying low lowers it.
+   --------------------------------------------------------------------------- */
+// THE MANHUNT — a GTA-style two-state wanted system.
+//   HUNTED    : a lawman has line of sight → they track your position, no cooldown.
+//   SEARCHING : you broke sight → the law sweeps a "search zone" at your last-known
+//               spot while your stars tick down. Re-spotted → the timer refills.
+// Camp is a safe haven; a bribe token knocks off a star. (Forgiving/arcade tuning.)
+const Wanted = {
+  level: 0,        // 0..5 (integer shown as stars)
+  heat: 0,         // continuous accumulator (level = ceil(heat))
+  spawnTimer: 0,
+  searching: false,          // true = law lost you, cooling down
+  lastSeen: { x:0, y:0 },    // centre of the search zone
+  searchRadius: 0,
+  inTown(x,y) { return Math.abs(x-TOWN_CX)<700 && Math.abs(y-TOWN_CY)<700; },
+  onPlayerShot(x,y) { if (this.inTown(x,y)) this.add(0.18); },
+  onCivilianKilled() { this.add(2.2); Game.flashMsg('Witnessed murder! The law wants you.'); },
+  onLawmanKilled() { this.add(1.2); },
+  add(v) {
+    this.heat = clamp(this.heat + v, 0, CFG.WANTED_MAX);
+    this.level = Math.ceil(this.heat - 1e-6);
+    // Committing a crime blows your cover and re-centres the manhunt on you.
+    this.searching = false;
+    this.lastSeen.x = Game.player.x; this.lastSeen.y = Game.player.y;
+  },
+  bribe() {  // spend a bribe token — knock off one star
+    this.heat = Math.max(0, Math.ceil(this.heat-1e-6) - 1);
+    this.level = Math.ceil(this.heat - 1e-6);
+  },
+  clear() { this.heat=0; this.level=0; this.searching=false; },
+
+  // Does any living lawman actually have eyes on the player right now?
+  lawSeesPlayer(player) {
+    return Game.enemies.some(e => e.kind==='lawman' && !e.dead &&
+      dist(e.x,e.y,player.x,player.y) < CFG.ENEMY_VIEW &&
+      Game.lineOfSight(e.x,e.y,player.x,player.y));
+  },
+
+  update(dt, player) {
+    if (this.level <= 0) { this.searching = false; return; }
+    const inCamp  = Game.playerInCamp();
+    const spotted = !inCamp && this.lawSeesPlayer(player);   // camp = safe, counts as unseen
+    this.searchRadius = CFG.SEARCH_RADIUS_BASE + (this.level-1)*CFG.SEARCH_RADIUS_PER;
+
+    if (spotted) {
+      // HUNTED — no cooldown; the manhunt tracks your live position.
+      this.searching = false;
+      this.lastSeen.x = player.x; this.lastSeen.y = player.y;
+    } else {
+      // SEARCHING — stars tick down. Laying low at camp cools much faster.
+      this.searching = true;
+      const rate = (1/CFG.SEARCH_PER_STAR) * (inCamp ? CFG.CAMP_COOLDOWN_MULT : 1);
+      this.heat = Math.max(0, this.heat - rate*dt);
+      this.level = Math.ceil(this.heat - 1e-6);
+      if (this.level <= 0) { this.searching = false; return; }
+    }
+
+    // Send lawmen to sweep the search zone (their patrol home = last-seen spot).
+    for (const e of Game.enemies) if (e.kind==='lawman') { e.home.x=this.lastSeen.x; e.home.y=this.lastSeen.y; }
+
+    // Spawn lawmen scaled to level (forgiving ~1.5×), converging on the search zone.
+    this.spawnTimer -= dt;
+    const lawCount = Game.enemies.filter(e=>e.kind==='lawman').length;
+    const desired = Math.ceil(this.level * 1.5);
+    if (this.spawnTimer<=0 && lawCount < desired) {
+      this.spawnTimer = clamp(4 - this.level*0.4, 1.2, 4);
+      Game.spawnLawman(player);
+    }
+  }
+};
+
+
+"use strict";
+/* Redemption's Edge — game.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   10. GAME CONTROLLER
+   --------------------------------------------------------------------------- */
+const Game = {
+  state: STATE.START,
+  player: null,
+  enemies: [], bullets: [], particles: [], pickups: [], floats: [], townsfolk: [], horses: [],
+  dynamites: [], explosions: [],
+  time: 0,
+  dayPhase: 0,        // 0..1 cycles for subtle lighting shift
+  msg: '', msgTimer: 0,
+  interactPrompt: null,
+  score: 0, kills: 0,
+  difficulty: 'normal',   // 'easy' | 'normal' | 'hard' — chosen on the start screen
+  diff() { return DIFFICULTY[this.difficulty]; },
+
+  init() {
+    generateScenery();
+    generateProps();
+    this.reset();
+  },
+
+  reset() {
+    resetSecrets();   // re-hide buried caches for a fresh run
+    for (const b of STRUCTURES) b.looted = false;   // re-lock pickable doors
+    this._hadLaw = false;                            // manhunt bookkeeping
+    // Chris King starts at Darryl's camp — somewhere to belong before Hicksville judges him.
+    this.player = new Player(CAMP_CX, CAMP_CY + 130);
+    this.enemies = []; this.bullets = []; this.particles = [];
+    this.pickups = []; this.floats = []; this.townsfolk = []; this.horses = [];
+    this.dynamites = []; this.explosions = [];
+    this.kills = 0; this.score = 0; this.time = 0;
+    Wanted.clear();
+    Camera.x = clamp(this.player.x - CFG.VIEW_W/2, 0, CFG.WORLD_W-CFG.VIEW_W);
+    Camera.y = clamp(this.player.y - CFG.VIEW_H/2, 0, CFG.WORLD_H-CFG.VIEW_H);
+
+    // Spawn bandits in the badlands around the town (Tier 1: 5–8 + a couple enforcers).
+    const spots = [
+      [TOWN_CX+900, TOWN_CY-300], [TOWN_CX+1200, TOWN_CY+400],
+      [TOWN_CX-1000, TOWN_CY+200], [TOWN_CX-700, TOWN_CY-900],
+      [TOWN_CX+500, TOWN_CY+1100], [TOWN_CX-1300, TOWN_CY-300],
+      [TOWN_CX+1500, TOWN_CY-700], [TOWN_CX-400, TOWN_CY+1400],
+    ];
+    spots.forEach((s,i) => {
+      const kind = (i % 4 === 3) ? 'enforcer' : 'bandit';
+      this.enemies.push(new Enemy(clamp(s[0],100,CFG.WORLD_W-100), clamp(s[1],100,CFG.WORLD_H-100), kind));
+    });
+
+    // Wagon circle ambush — a couple of bandits holed up out in the flats.
+    for (let i=0;i<2;i++) this.enemies.push(new Enemy(LANDMARK_POS.wagons.x+rand(-90,90), LANDMARK_POS.wagons.y+rand(-90,90), 'bandit'));
+
+    // Townsfolk wandering the square.
+    for (let i=0;i<5;i++) this.townsfolk.push(new Townsfolk(TOWN_CX+rand(-300,300), TOWN_CY+rand(-300,300)));
+
+    // Horses near the stable + one in the wild.
+    this.horses.push(new Horse(CAMP_CX+170, CAMP_CY+30));   // saddled at camp
+    this.horses.push(new Horse(TOWN_CX+520, TOWN_CY+150));  // hitched at the Broken Spur stable
+  },
+
+  // --- World queries -------------------------------------------------------
+  hitsSolid(x,y) {
+    for (const b of STRUCTURES) if (x>b.x&&x<b.x+b.w&&y>b.y&&y<b.y+b.h) return true;
+    for (const f of FENCES) if (x>f.x&&x<f.x+f.w&&y>f.y&&y<f.y+f.h) return true;
+    for (const s of SCENERY) { if (s.solid && dist2(x,y,s.x,s.y) < (s.r*0.7)*(s.r*0.7)) return true; }
+    for (const p of PROPS) { if (p.solid && dist2(x,y,p.x,p.y) < (p.r*0.8)*(p.r*0.8)) return true; }
+    return false;
+  },
+  // Sample a few points along the segment to approximate line of sight.
+  lineOfSight(x1,y1,x2,y2) {
+    const steps = 14;
+    for (let i=1;i<steps;i++) {
+      const t=i/steps;
+      if (this.hitsSolid(lerp(x1,x2,t), lerp(y1,y2,t))) return false;
+    }
+    return true;
+  },
+  // Is the player laying low at Darryl's camp? (Manhunt safe haven.)
+  playerInCamp() { return dist(this.player.x, this.player.y, CAMP_CX, CAMP_CY) < CFG.CAMP_SAFE_RADIUS; },
+
+  // --- Spawners / FX -------------------------------------------------------
+  spawnMuzzle(x,y,ang) {
+    for (let i=0;i<6;i++) {
+      const a = ang + rand(-0.4,0.4);
+      const sp = rand(60,220);
+      this.particles.push(new Particle(x,y,Math.cos(a)*sp,Math.sin(a)*sp,rand(0.05,0.15),
+        i<3?'#fff3b0':'#ff9a3c', rand(2,5)));
+    }
+    // Brief flash sprite handled at render via particle; add light puff smoke.
+    this.particles.push(new Particle(x,y,Math.cos(ang)*30,Math.sin(ang)*30,0.3,'rgba(120,110,90,0.5)',7));
+  },
+  spawnImpact(x,y,kind) {
+    const col = kind==='blood' ? ['#9a1a1a','#6a1010'] : ['#9a8050','#6a5230'];
+    for (let i=0;i<8;i++) {
+      const a=rand(0,TAU), sp=rand(40,180);
+      this.particles.push(new Particle(x,y,Math.cos(a)*sp,Math.sin(a)*sp,rand(0.2,0.5),
+        col[randInt(0,1)], rand(2,5), 60));
+    }
+  },
+  // Dynamite detonation — radial damage + knockback, applied once. (Milestone 1)
+  spawnExplosion(x,y) {
+    this.explosions.push(new Explosion(x,y));
+    Camera.addShake(15);
+    Audio.explosion();
+    const R = CFG.DYN_RADIUS;
+    // Fire + dirt burst
+    for (let i=0;i<26;i++) {
+      const a=rand(0,TAU), sp=rand(80,420);
+      this.particles.push(new Particle(x,y,Math.cos(a)*sp,Math.sin(a)*sp,rand(0.25,0.7),
+        i<14?(i<7?'#fff0c0':'#ff8a2c'):'#7a5230', rand(3,7), 40));
+    }
+    // Enemies in range
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      const d = dist(x,y,e.x,e.y);
+      if (d < R + e.r) {
+        const f = clamp(1 - d/R, 0.15, 1);
+        e.applyKnockback(angTo(x,y,e.x,e.y), CFG.DYN_KNOCKBACK*f);
+        e.takeDamage(CFG.DYN_DMG*f + 15);
+        this.floats.push(new FloatText(e.x, e.y-16, ''+Math.round(CFG.DYN_DMG*f), '#ff8a3a'));
+      }
+    }
+    // Townsfolk in range (lethal — big honor/wanted hit)
+    for (const t of this.townsfolk) {
+      if (!t.dead && dist(x,y,t.x,t.y) < R) t.takeDamage(999);
+    }
+    // The player isn't immune to their own dynamite (unless mid-dodge).
+    const p = this.player;
+    if (!p.dead) {
+      const dp = dist(x,y,p.x,p.y);
+      if (dp < R) {
+        const f = clamp(1 - dp/R, 0, 1);
+        p.takeDamage(f*55);
+        p.vx += Math.cos(angTo(x,y,p.x,p.y))*CFG.DYN_KNOCKBACK*f;
+        p.vy += Math.sin(angTo(x,y,p.x,p.y))*CFG.DYN_KNOCKBACK*f;
+      }
+    }
+    // Dynamite can blast the collapsed mine open (M2→M3 bridge).
+    for (const lm of LANDMARKS) {
+      if (lm.type==='mine' && !lm.opened && dist(x,y,lm.x,lm.y) < R+30) {
+        lm.opened = true;
+        this.pickups.push(new Pickup(lm.x+rand(-20,20), lm.y+40, 'money'));
+        this.pickups.push(new Pickup(lm.x+rand(-20,20), lm.y+40, 'dynamite'));
+        this.flashMsg('You blast the mine open! Old tunnels yawn into the dark...');
+      }
+    }
+    // Loud crime if it goes off in town.
+    if (Wanted.inTown(x,y)) Wanted.add(0.6);
+  },
+
+  spawnLawman(player) {
+    // Lawmen converge from off-screen on the search zone (or on you, if you're in the open).
+    const c = Wanted.searching ? Wanted.lastSeen : player;
+    const a = rand(0,TAU), d = 740;
+    let sx = clamp(c.x + Math.cos(a)*d, 80, CFG.WORLD_W-80);
+    let sy = clamp(c.y + Math.sin(a)*d, 80, CFG.WORLD_H-80);
+    const law = new Enemy(sx, sy, 'lawman');
+    law.state='chase'; law.home={x:Wanted.lastSeen.x, y:Wanted.lastSeen.y};
+    this.enemies.push(law);
+  },
+
+  onEnemyKilled(e) {
+    this.kills++;
+    this.score += e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
+    this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
+    if (e.kind==='lawman') Wanted.onLawmanKilled();
+    // Loot drops
+    if (Math.random()<0.78) this.pickups.push(new Pickup(e.x+rand(-10,10), e.y+rand(-10,10), Math.random()<0.5?'ammo':'money'));
+    if (e.kind==='enforcer') this.pickups.push(new Pickup(e.x+rand(-14,14), e.y+rand(-14,14), 'money'));
+    if (Math.random()<0.22) this.pickups.push(new Pickup(e.x+rand(-12,12), e.y+rand(-12,12), 'dynamite'));  // occasional sticks
+    if (e.kind==='lawman' && Math.random()<0.55) this.pickups.push(new Pickup(e.x+rand(-12,12), e.y+rand(-12,12), 'bribe'));  // lawmen drop bribe tokens
+    this.floats.push(new FloatText(e.x, e.y-20, e.kind==='enforcer'?'+250':'+100', '#e8d56a'));
+    // Spawn a fresh bandit elsewhere occasionally to keep the world alive.
+    // Gang cap scales with difficulty (more enemies on Normal/Hard).
+    const cap = Math.round(9 * this.diff().count);
+    if (e.kind!=='lawman' && this.enemies.filter(x=>x.kind!=='lawman').length < cap && Math.random()<0.65) {
+      const a=rand(0,TAU), d=rand(1100,1600);
+      const nx=clamp(this.player.x+Math.cos(a)*d,100,CFG.WORLD_W-100);
+      const ny=clamp(this.player.y+Math.sin(a)*d,100,CFG.WORLD_H-100);
+      this.enemies.push(new Enemy(nx,ny, Math.random()<0.25?'enforcer':'bandit'));
+    }
+  },
+
+  flashMsg(t) { this.msg=t; this.msgTimer=2.5; },
+
+  // --- Interaction at building doors --------------------------------------
+  checkInteraction() {
+    this.interactPrompt = null;
+    const p = this.player;
+    for (const b of STRUCTURES) {
+      if (b.action==='none') continue;
+      if (dist(p.x,p.y,b.door.x,b.door.y) < 55) {
+        this.interactPrompt = b;
+        if (Input.hit('e')) this.doInteraction(b);
+        return;
+      }
+    }
+    // Interactable landmarks (shrine, mine)
+    for (const lm of LANDMARKS) {
+      if (!lm.action) continue;
+      if (dist(p.x,p.y,lm.x,lm.y) < 72) {
+        this.interactPrompt = { label: (lm.action==='mine'&&lm.opened) ? 'Mine shaft — dark and deep (more soon)' : lm.label };
+        if (Input.hit('e')) this.doLandmark(lm);
+        return;
+      }
+    }
+    // Buried caches — dig with [E]
+    for (const sc of SECRETS) {
+      if (sc.found) continue;
+      if (dist(p.x,p.y,sc.x,sc.y) < 46) {
+        this.interactPrompt = { label:'Open the strongbox' };
+        if (Input.hit('e')) this.digSecret(sc);
+        return;
+      }
+    }
+    // Wanted board
+    if (dist(p.x,p.y,WANTED_BOARD.x,WANTED_BOARD.y) < 56) {
+      this.interactPrompt = { label:'Read the wanted board' };
+      if (Input.hit('e')) this.readBoard();
+      return;
+    }
+    // Horse mounting
+    if (!p.mounted) {
+      for (const h of this.horses) {
+        if (!h.ridden && dist(p.x,p.y,h.x,h.y) < 55) {
+          this.interactPrompt = { mount:true };
+          if (Input.hit('e')) { p.mounted=h; h.ridden=true; Audio.click(); this.flashMsg('Mounted horse — press E to dismount'); }
+          return;
+        }
+      }
+    } else {
+      // Allow dismount anywhere
+      this.interactPrompt = { dismount:true };
+      if (Input.hit('e')) {
+        p.mounted.ridden=false; p.mounted.x=p.x+30; p.mounted.y=p.y;
+        p.mounted=null; Audio.click();
+      }
+    }
+  },
+
+  doInteraction(b) {
+    const p = this.player;
+    Audio.click();
+    if (b.action==='rest') {
+      if (p.money>=10 && p.hp<CFG.PLAYER_MAX_HP) { p.money-=10; p.hp=CFG.PLAYER_MAX_HP; this.flashMsg('Whiskey and a bunk at the Leaning Saloon. Patched up.'); }
+      else if (p.hp>=CFG.PLAYER_MAX_HP) this.flashMsg('You ain’t hurt. Barkeep waves you off.');
+      else this.flashMsg('Barkeep: "No coin, no cot." ($10)');
+    } else if (b.action==='camp') {
+      // Darryl's camp — free full heal + ammo top-up. Your home base.
+      p.hp=CFG.PLAYER_MAX_HP; this.giveAmmo(CFG.CYLINDER);
+      this.flashMsg('Darryl: "Sit by the fire, ya idiot. Patched and loaded."');
+    } else if (b.action==='store') {
+      if (p.money>=5) { p.money-=5; this.giveAmmo(6); this.flashMsg('Lucky Tooth: bought 6 rounds.'); }
+      else this.flashMsg('Lucky Tooth clerk: "Five dollars or get out." ($5)');
+    } else if (b.action==='sheriff') {
+      const cost = Wanted.level*40;
+      if (Wanted.level===0) this.flashMsg('Sheriff Crook: "Nothin’ on you... yet."');
+      else if (p.money>=cost) { p.money-=cost; Wanted.clear(); this.flashMsg('Bounty paid off. Crook pockets it and looks away.'); }
+      else this.flashMsg(`Crook: "Your bounty's $${cost}. Come back with it."`);
+    } else if (b.action==='bank') {
+      // Robbing the bank: cash + heavy heat (outlaw freedom).
+      const haul = randInt(60,120);
+      p.money += haul; Wanted.add(3); Camera.addShake(8);
+      this.flashMsg(`Cracked the safe! +$${haul} — the whole town heard that.`);
+    } else if (b.action==='chapel' || b.action==='lockdoor') {
+      // Lockpick tool opens these for loot (M3).
+      if (b.looted) { this.flashMsg(b.action==='chapel' ? 'The cellar yawns open below.' : 'Already cleaned this one out.'); return; }
+      if (!this.player.hasLockpick) { this.flashMsg('Locked tight. You’d need a lockpick.'); return; }
+      b.looted = true;
+      const money = randInt(30,80);
+      this.player.money += money; this.score += money; this.giveAmmo(4);
+      let extra=''; if (Math.random()<0.6) { this.player.dynamite = Math.min(CFG.DYN_MAX, this.player.dynamite+2); extra=' + dynamite'; }
+      this.pickups.push(new Pickup(b.door.x+rand(-14,14), b.door.y-20, 'money'));
+      if (b.action==='chapel') {
+        this.enemies.push(new Enemy(b.door.x, b.door.y-34, 'bandit'));   // something was hiding down there
+        this.flashMsg(`Lockpicked the chapel cellar! +$${money}${extra} — and something lunges from the dark!`);
+      } else {
+        this.flashMsg(`Picked the lock: +$${money}, +4 ammo${extra}.`);
+      }
+    }
+  },
+
+  giveAmmo(n) {
+    // Reserve ammo is abstracted: top up cylinder; surplus reloads instantly handled by R.
+    this.player.ammo = Math.min(CFG.CYLINDER, this.player.ammo + n);
+  },
+
+  // --- Milestone 2 interactions -------------------------------------------
+  digSecret(sc) {
+    sc.found = true;
+    const p = this.player;
+    const money = randInt(20,70), ammo = randInt(2,6);
+    p.money += money; this.score += money; this.giveAmmo(ammo);
+    let extra = '';
+    if (Math.random()<0.5) { p.dynamite = Math.min(CFG.DYN_MAX, p.dynamite+2); extra = ' + 2 dynamite'; }
+    Audio.money();
+    // golden burst of coins/sparkle
+    for (let i=0;i<14;i++){ const a=rand(0,TAU), s=rand(40,170); this.particles.push(new Particle(sc.x,sc.y-4,Math.cos(a)*s,Math.sin(a)*s,rand(0.3,0.7),i<8?'#ffe07a':'#caa14a',rand(3,6),140)); }
+    this.floats.push(new FloatText(sc.x, sc.y-16, `Loot! +$${money}`, '#ffe07a'));
+    this.flashMsg(`Cracked open a strongbox: +$${money}, +${ammo} ammo${extra}.`);
+  },
+
+  doLandmark(lm) {
+    const p = this.player;
+    Audio.click();
+    if (lm.action==='shrine') {
+      if (p.money>=5) { p.money-=5; p.hp=CFG.PLAYER_MAX_HP;
+        this.flashMsg('You lay a coin on the bone shrine. The aches fade. (Healed)'); }
+      else this.flashMsg('The bone shrine wants a coin ($5) for its blessing.');
+    } else if (lm.action==='mine') {
+      if (lm.opened) this.flashMsg('The shaft goes deep into the dark. (More to come.)');
+      else this.flashMsg('Caved in solid. A stick of dynamite might clear it...');
+    }
+  },
+
+  readBoard() {
+    Audio.click();
+    const b = Wanted.level>0 ? `Your bounty: $${Wanted.level*40} (${Wanted.level}★).  ` : 'No bounty on you — yet.  ';
+    this.flashMsg(b + RUMORS[randInt(0,RUMORS.length-1)]);
+  },
+
+  // --- Main update ---------------------------------------------------------
+  update(dt) {
+    if (this.state !== STATE.PLAY) return;
+    this.time += dt;
+    this.dayPhase = (this.time * 0.01) % 1;   // very slow cycle
+
+    const p = this.player;
+    p.update(dt);   // player always runs at real time (stays responsive)
+
+    // Dead Eye slows the WORLD: enemies, their bullets & thrown dynamite crawl,
+    // while the player and their shots stay at full speed.
+    const sdt = dt * (p.deadeyeActive ? CFG.DEADEYE_TIMESCALE : 1);
+
+    // Camera target = player, lead slightly toward aim/mouse for situational awareness.
+    const leadX = p.x + Math.cos(p.aim)*60;
+    const leadY = p.y + Math.sin(p.aim)*60;
+    Camera.follow(lerp(p.x,leadX,0.4), lerp(p.y,leadY,0.4), dt);
+
+    // Enemies + townsfolk run on slowed time during Dead Eye
+    for (const e of this.enemies) e.update(sdt, p);
+    for (const t of this.townsfolk) t.update(sdt, p);
+    for (const h of this.horses) h.update(dt);   // summoned horse gallops in real time
+
+    // Bullets + hit resolution (your shots fly at full speed; enemy lead crawls in Dead Eye)
+    for (const b of this.bullets) {
+      b.update(b.friendly ? dt : sdt);
+      if (b.dead) continue;
+      if (b.friendly) {
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          if (dist2(b.x,b.y,e.x,e.y) < (e.r+b.r)*(e.r+b.r)) {
+            e.takeDamage(b.dmg);
+            e.applyKnockback(Math.atan2(b.vy,b.vx), CFG.BULLET_KNOCKBACK);  // shove on hit
+            b.dead=true;
+            this.floats.push(new FloatText(e.x, e.y-14, ''+b.dmg, '#ffce5a'));
+            break;
+          }
+        }
+        if (!b.dead) for (const t of this.townsfolk) {
+          if (t.dead) continue;
+          if (dist2(b.x,b.y,t.x,t.y) < (t.r+b.r)*(t.r+b.r)) { t.takeDamage(b.dmg); b.dead=true; break; }
+        }
+      } else {
+        if (!p.dead && dist2(b.x,b.y,p.x,p.y) < (p.r+b.r)*(p.r+b.r)) {
+          p.takeDamage(b.dmg); b.dead=true;
+        }
+      }
+    }
+
+    // Dynamites + explosions (dynamite fuse also slows during Dead Eye)
+    for (const dy of this.dynamites) dy.update(sdt);
+    for (const ex of this.explosions) ex.update(dt);
+
+    // Pickups
+    for (const pk of this.pickups) {
+      pk.update(dt);
+      if (dist2(p.x,p.y,pk.x,pk.y) < (p.r+pk.r)*(p.r+pk.r)) {
+        pk.dead=true;
+        if (pk.kind==='ammo') { this.giveAmmo(pk.value); this.floats.push(new FloatText(p.x,p.y-24,`+${pk.value} ammo`,'#caa14a')); Audio.pickup(); }
+        else if (pk.kind==='dynamite') { p.dynamite=Math.min(CFG.DYN_MAX, p.dynamite+pk.value); this.floats.push(new FloatText(p.x,p.y-24,`+${pk.value} dynamite`,'#e88a3a')); Audio.pickup(); }
+        else if (pk.kind==='bribe') { Wanted.bribe(); this.floats.push(new FloatText(p.x,p.y-24,'Bribe — 1★ off','#e8c45a')); Audio.money(); }
+        else { p.money+=pk.value; this.score+=pk.value; this.floats.push(new FloatText(p.x,p.y-24,`+$${pk.value}`,'#e8d56a')); Audio.money(); }
+      }
+    }
+
+    // Townsfolk flee if player shooting nearby or wanted.
+    for (const t of this.townsfolk) {
+      t.fleeing = (Wanted.level>0 && dist(t.x,t.y,p.x,p.y)<300) || (p.fireTimer>0.25 && dist(t.x,t.y,p.x,p.y)<260);
+    }
+
+    for (const pt of this.particles) pt.update(dt);
+    for (const f of this.floats) f.update(dt);
+
+    Wanted.update(dt, p);
+    // When the manhunt fully ends, the law gives up and clears out.
+    if (Wanted.level>0) this._hadLaw = true;
+    else if (this._hadLaw) {
+      this.enemies = this.enemies.filter(e=>e.kind!=='lawman');
+      this._hadLaw = false;
+      this.flashMsg('The law calls off the hunt. You slipped the noose.');
+    }
+    this.checkInteraction();
+
+    // Cull dead entities
+    this.bullets = this.bullets.filter(b=>!b.dead);
+    this.enemies = this.enemies.filter(e=>!e.dead);
+    this.particles = this.particles.filter(p=>!p.dead);
+    this.pickups = this.pickups.filter(p=>!p.dead);
+    this.floats = this.floats.filter(f=>!f.dead);
+    this.townsfolk = this.townsfolk.filter(t=>!t.dead);
+    this.dynamites = this.dynamites.filter(d=>!d.dead);
+    this.explosions = this.explosions.filter(e=>!e.dead);
+
+    if (this.msgTimer>0) this.msgTimer-=dt;
+
+    if (p.dead) { this.state = STATE.GAMEOVER; }
+  },
+};
+
+
+"use strict";
+/* Redemption's Edge — render.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   11. RENDERING
+   --------------------------------------------------------------------------- */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+function render() {
+  const ox = Camera.ox, oy = Camera.oy;
+
+  // --- Ground ---
+  drawGround(ox, oy);
+
+  // Landmark ground decals (riverbed, ghost trail, shrine pad) + cache mounds
+  drawLandmarkGround(ox, oy);
+
+  // --- World objects sorted roughly by y for fake depth ---
+  // Scenery behind
+  for (const s of SCENERY) {
+    if (s.x < ox-60 || s.x > ox+CFG.VIEW_W+60 || s.y < oy-60 || s.y > oy+CFG.VIEW_H+60) continue;
+    drawScenery(s, ox, oy);
+  }
+  // Fences
+  ctx.fillStyle='#3a2a18';
+  for (const f of FENCES) {
+    drawFence(f, ox, oy);
+  }
+  // Campfire glow sits under the camp structures
+  drawCampfire(ox, oy);
+  // Buildings + camp
+  for (const b of STRUCTURES) drawBuilding(b, ox, oy);
+  // Landmark structures (arch span, mine, wagons), town props, wanted board
+  drawLandmarkStructures(ox, oy);
+  drawProps(ox, oy);
+  drawWantedBoard(ox, oy);
+  // Manhunt: search-zone ring + lawman vision cones (ground level, under NPCs)
+  drawManhunt(ox, oy);
+  // Darryl by the fire
+  drawDarryl(ox, oy);
+
+  // Pickups
+  for (const pk of Game.pickups) pk.render(ctx, ox, oy);
+
+  // Idle horses
+  for (const h of Game.horses) if (!h.ridden) h.render(ctx, ox, oy);
+
+  // Townsfolk
+  for (const t of Game.townsfolk) t.render(ctx, ox, oy);
+
+  // Enemies
+  for (const e of Game.enemies) e.render(ctx, ox, oy);
+
+  // Player
+  if (!Game.player.dead || Game.state!==STATE.GAMEOVER) Game.player.render(ctx, ox, oy);
+
+  // Live dynamite sticks (under bullets/particles)
+  for (const dy of Game.dynamites) dy.render(ctx, ox, oy);
+
+  // Bullets + particles on top
+  for (const b of Game.bullets) b.render(ctx, ox, oy);
+  for (const pt of Game.particles) pt.render(ctx, ox, oy);
+  // Explosion flashes above the smoke
+  for (const ex of Game.explosions) ex.render(ctx, ox, oy);
+  for (const f of Game.floats) f.render(ctx, ox, oy);
+
+  // Aim reticle
+  drawReticle();
+
+  // Atmospheric lighting tint (Tier 3 subtle day shift)
+  drawLightingTint();
+
+  // Dead Eye overlay (slowed-time tint + target rings)
+  drawDeadEye();
+
+  // HUD
+  drawHUD();
+  drawMinimap();
+
+  if (Game.state===STATE.START) drawStartScreen();
+  if (Game.state===STATE.PAUSE) drawPauseScreen();
+  if (Game.state===STATE.GAMEOVER) drawGameOver();
+}
+
+function drawGround(ox, oy) {
+  // Base prairie wash
+  const g = ctx.createLinearGradient(0,0,0,CFG.VIEW_H);
+  g.addColorStop(0,'#5a4a30'); g.addColorStop(1,'#4a3c26');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+
+  // Subtle tile texture using offset grid of dusty patches
+  const T = CFG.TILE*2;
+  const startX = Math.floor(ox/T)*T;
+  const startY = Math.floor(oy/T)*T;
+  ctx.save();
+  for (let x=startX; x<ox+CFG.VIEW_W+T; x+=T) {
+    for (let y=startY; y<oy+CFG.VIEW_H+T; y+=T) {
+      const h = (Math.sin(x*0.013)+Math.cos(y*0.017))*0.5;
+      ctx.fillStyle = h>0 ? 'rgba(120,100,60,0.10)' : 'rgba(60,48,28,0.12)';
+      ctx.fillRect(x-ox, y-oy, T, T);
+    }
+  }
+  ctx.restore();
+
+  // Main street (lighter dirt road through town)
+  ctx.fillStyle='rgba(150,124,80,0.35)';
+  ctx.fillRect(TOWN_CX-70-ox, 0-oy, 140, CFG.WORLD_H);
+  ctx.fillRect(0-ox, TOWN_CY-60-oy, CFG.WORLD_W, 120);
+
+  // World border posts
+  ctx.strokeStyle='rgba(30,22,12,0.8)'; ctx.lineWidth=8;
+  ctx.strokeRect(-ox, -oy, CFG.WORLD_W, CFG.WORLD_H);
+}
+
+function drawScenery(s, ox, oy) {
+  const tx=s.x-ox, ty=s.y-oy;
+  ctx.save();
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(tx, ty+s.r*0.5, s.r*0.9, s.r*0.4, 0, 0, TAU); ctx.fill();
+  if (s.type==='rock') {
+    ctx.fillStyle='#6b6256';
+    ctx.beginPath();
+    for (let i=0;i<6;i++){ const a=i/6*TAU + s.seed; const rr=s.r*(0.8+0.2*Math.sin(s.seed+i)); ctx.lineTo(tx+Math.cos(a)*rr, ty+Math.sin(a)*rr*0.8); }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#565049'; ctx.beginPath(); ctx.ellipse(tx-s.r*0.2,ty-s.r*0.2,s.r*0.4,s.r*0.3,0,0,TAU); ctx.fill();
+  } else if (s.type==='cactus') {
+    ctx.fillStyle='#4a6a3a';
+    ctx.fillRect(tx-s.r*0.3, ty-s.r, s.r*0.6, s.r*2);
+    ctx.fillRect(tx-s.r*0.3, ty-s.r*0.4, -s.r*0.7, s.r*0.4);
+    ctx.fillRect(tx+s.r*0.3, ty-s.r*0.2, s.r*0.7, s.r*0.4);
+    ctx.fillStyle='#3a5a2c';
+    ctx.fillRect(tx-s.r*0.9, ty-s.r*0.6, s.r*0.4, s.r*0.6);
+    ctx.fillRect(tx+s.r*0.5, ty-s.r*0.4, s.r*0.4, s.r*0.6);
+  } else if (s.type==='tree') {
+    ctx.fillStyle='#3a2a18';
+    ctx.fillRect(tx-3, ty-2, 6, s.r*0.7);
+    ctx.fillStyle='#3c5230';
+    ctx.beginPath(); ctx.arc(tx, ty-s.r*0.5, s.r, 0, TAU); ctx.fill();
+    ctx.fillStyle='#46603a';
+    ctx.beginPath(); ctx.arc(tx-s.r*0.3, ty-s.r*0.7, s.r*0.6, 0, TAU); ctx.fill();
+  } else { // shrub
+    ctx.fillStyle='#5a5230';
+    ctx.beginPath(); ctx.arc(tx, ty, s.r, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFence(f, ox, oy) {
+  const tx=f.x-ox, ty=f.y-oy;
+  ctx.fillStyle='#3a2a18';
+  // Vertical rail with posts
+  for (let yy=0; yy<f.h; yy+=28) {
+    ctx.fillRect(tx, ty+yy, f.w, 18);
+  }
+  ctx.fillRect(tx+2, ty, 3, f.h);
+}
+
+function drawBuilding(b, ox, oy) {
+  const tx=b.x-ox, ty=b.y-oy;
+  ctx.save();
+  // Drop shadow
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.fillRect(tx+8, ty+10, b.w, b.h);
+  // Walls
+  ctx.fillStyle=b.color;
+  ctx.fillRect(tx, ty, b.w, b.h);
+  // Plank texture
+  ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1;
+  for (let yy=8; yy<b.h; yy+=14) { ctx.beginPath(); ctx.moveTo(tx,ty+yy); ctx.lineTo(tx+b.w,ty+yy); ctx.stroke(); }
+  // Roof band
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.fillRect(tx, ty, b.w, 16);
+  // Door
+  const dx=b.door.x-ox, dy=b.door.y-oy;
+  ctx.fillStyle='#1e140a';
+  ctx.fillRect(dx-13, dy-30, 26, 32);
+  ctx.fillStyle='#2e2012';
+  ctx.fillRect(dx-15, dy-34, 30, 6);
+  // Sign
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  const labelW = ctx.measureText(b.name).width;
+  ctx.font='bold 15px Georgia'; ctx.textAlign='center';
+  const lw = ctx.measureText(b.name).width + 16;
+  ctx.fillRect(tx+b.w/2 - lw/2, ty+20, lw, 22);
+  ctx.fillStyle='#e8d5a8';
+  ctx.fillText(b.name, tx+b.w/2, ty+36);
+  // Landmark flourishes
+  if (b.cross) {           // chapel steeple cross
+    ctx.fillStyle='#2a2218';
+    ctx.fillRect(tx+b.w/2-3, ty-26, 6, 26);
+    ctx.fillRect(tx+b.w/2-11, ty-18, 22, 6);
+  }
+  if (b.tent) {            // tent roof peak over Darryl's tent
+    ctx.fillStyle='#3a2c1a';
+    ctx.beginPath();
+    ctx.moveTo(tx-10, ty); ctx.lineTo(tx+b.w/2, ty-34); ctx.lineTo(tx+b.w+10, ty);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Animated campfire at the heart of Darryl's camp.
+function drawCampfire(ox, oy) {
+  const tx=CAMPFIRE.x-ox, ty=CAMPFIRE.y-oy;
+  if (tx<-80||tx>CFG.VIEW_W+80||ty<-80||ty>CFG.VIEW_H+80) return;
+  CAMPFIRE.flick += 0.3;
+  ctx.save();
+  // warm ground glow
+  const g=ctx.createRadialGradient(tx,ty,4,tx,ty,90);
+  g.addColorStop(0,'rgba(255,170,70,0.35)'); g.addColorStop(1,'rgba(255,170,70,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(tx,ty,90,0,TAU); ctx.fill();
+  // logs
+  ctx.strokeStyle='#3a2614'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(tx-12,ty+5); ctx.lineTo(tx+12,ty+8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(tx-10,ty+9); ctx.lineTo(tx+11,ty+2); ctx.stroke();
+  // flame
+  const f = 1 + Math.sin(CAMPFIRE.flick)*0.18;
+  ctx.fillStyle='#ff7a1c';
+  ctx.beginPath(); ctx.moveTo(tx,ty-22*f); ctx.quadraticCurveTo(tx+10,ty-4,tx,ty+2); ctx.quadraticCurveTo(tx-10,ty-4,tx,ty-22*f); ctx.fill();
+  ctx.fillStyle='#ffd24a';
+  ctx.beginPath(); ctx.moveTo(tx,ty-13*f); ctx.quadraticCurveTo(tx+5,ty-3,tx,ty+1); ctx.quadraticCurveTo(tx-5,ty-3,tx,ty-13*f); ctx.fill();
+  ctx.restore();
+}
+
+// Darryl — camp leader, stands by the fire. Purely decorative anchor NPC.
+function drawDarryl(ox, oy) {
+  const tx=DARRYL.x-ox, ty=DARRYL.y-oy;
+  if (tx<-60||tx>CFG.VIEW_W+60||ty<-60||ty>CFG.VIEW_H+60) return;
+  DARRYL.bob += 0.04;
+  ctx.save();
+  ctx.translate(tx, ty + Math.sin(DARRYL.bob)*1.2);
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0,11,12,5,0,0,TAU); ctx.fill();
+  ctx.fillStyle='#6a5236';                 // heavyset coat
+  ctx.beginPath(); ctx.ellipse(0,2,14,16,0,0,TAU); ctx.fill();
+  ctx.fillStyle='#caa078';                 // head
+  ctx.beginPath(); ctx.arc(0,-3,8,0,TAU); ctx.fill();
+  ctx.fillStyle='#cfc6b4';                 // grey beard
+  ctx.beginPath(); ctx.arc(0,1,6,0,Math.PI); ctx.fill();
+  ctx.fillStyle='#2a1d10';                 // wide hat
+  ctx.beginPath(); ctx.ellipse(0,-6,15,6,0,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,-9,8,6,0,0,TAU); ctx.fill();
+  ctx.restore();
+  // Name tag
+  ctx.fillStyle='rgba(20,14,6,0.7)'; ctx.font='11px Georgia'; ctx.textAlign='center';
+  const w=ctx.measureText('DARRYL').width+10;
+  ctx.fillRect(tx-w/2, ty-34, w, 15);
+  ctx.fillStyle='#d8c08a'; ctx.fillText('DARRYL', tx, ty-23);
+}
+
+/* ----- MILESTONE 2: overworld props & landmarks ----- */
+function onScreen(x,y,m){ const ox=Camera.x,oy=Camera.y; return !(x<ox-m||x>ox+CFG.VIEW_W+m||y<oy-m||y>oy+CFG.VIEW_H+m); }
+
+// Ground-level decals: dry riverbed, ghost-lantern trail, shrine pad, cache mounds.
+function drawLandmarkGround(ox, oy) {
+  for (const lm of LANDMARKS) {
+    if (lm.type==='riverbed') {
+      // winding pale channel
+      ctx.save(); ctx.strokeStyle='rgba(170,150,100,0.30)'; ctx.lineWidth=70; ctx.lineCap='round';
+      ctx.beginPath();
+      for (let i=0;i<=8;i++){ const px=lm.x+Math.sin(i*0.9)*160, py=lm.y+i*150; i?ctx.lineTo(px-ox,py-oy):ctx.moveTo(px-ox,py-oy); }
+      ctx.stroke();
+      ctx.strokeStyle='rgba(120,100,64,0.25)'; ctx.lineWidth=40; ctx.stroke();
+      ctx.restore();
+    } else if (lm.type==='shrine') {
+      if (!onScreen(lm.x,lm.y,160)) continue;
+      ctx.save(); ctx.fillStyle='rgba(70,60,80,0.4)';
+      ctx.beginPath(); ctx.ellipse(lm.x-ox,lm.y-oy,70,46,0,0,TAU); ctx.fill();
+      ctx.restore();
+    } else if (lm.type==='wagons') {
+      if (!onScreen(lm.x,lm.y,220)) continue;
+      ctx.save(); ctx.fillStyle='rgba(40,30,18,0.25)';
+      ctx.beginPath(); ctx.arc(lm.x-ox,lm.y-oy,120,0,TAU); ctx.fill(); ctx.restore();
+    } else if (lm.type==='ghosttrail') {
+      // Only visible at night — alpha tracks the lighting cycle.
+      const night = clamp(1-(Math.sin(Game.dayPhase*TAU)*0.5+0.5), 0, 1);
+      if (night<0.15) continue;
+      const endX=TOWN_CX+760, endY=TOWN_CY+1720;
+      for (let i=0;i<=8;i++){
+        const t=i/8, gx=lerp(lm.x,endX,t), gy=lerp(lm.y,endY,t);
+        if (!onScreen(gx,gy,40)) continue;
+        const fl=0.6+0.4*Math.sin(Game.time*3+i);
+        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=night*0.8*fl;
+        const g=ctx.createRadialGradient(gx-ox,gy-oy,1,gx-ox,gy-oy,26);
+        g.addColorStop(0,'#aef0ff'); g.addColorStop(1,'rgba(120,200,255,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(gx-ox,gy-oy,26,0,TAU); ctx.fill(); ctx.restore();
+      }
+    }
+  }
+  // Treasure strongboxes — closed if not yet looted, lid-open once taken.
+  for (const sc of SECRETS) {
+    if (!onScreen(sc.x,sc.y,40)) continue;
+    drawChest(sc.x-ox, sc.y-oy, sc.found);
+  }
+}
+
+// A western iron-banded strongbox. `open` draws it looted (lid up, empty).
+function drawChest(tx, ty, open) {
+  ctx.save();
+  // soft shadow
+  ctx.fillStyle='rgba(0,0,0,0.28)';
+  ctx.beginPath(); ctx.ellipse(tx, ty+8, 18, 6, 0, 0, TAU); ctx.fill();
+  const w=15, h=11;
+  // body
+  const g=ctx.createLinearGradient(tx-w, ty, tx+w, ty);
+  g.addColorStop(0,'#6a4423'); g.addColorStop(0.5,'#86592e'); g.addColorStop(1,'#5a3a1e');
+  ctx.fillStyle=g; ctx.fillRect(tx-w, ty-2, w*2, h);
+  ctx.strokeStyle='#2e1d0e'; ctx.lineWidth=2; ctx.strokeRect(tx-w, ty-2, w*2, h);
+  // iron bands
+  ctx.fillStyle='#2a2620';
+  ctx.fillRect(tx-w+3, ty-2, 4, h); ctx.fillRect(tx+w-7, ty-2, 4, h);
+  if (!open) {
+    // domed lid
+    ctx.fillStyle='#7a5128';
+    ctx.beginPath(); ctx.moveTo(tx-w,ty-2); ctx.quadraticCurveTo(tx,ty-15,tx+w,ty-2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#2e1d0e'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='#2a2620'; ctx.fillRect(tx-w+3,ty-8,4,7); ctx.fillRect(tx+w-7,ty-8,4,7);
+    // brass lock + keyhole
+    ctx.fillStyle='#e8c45a'; ctx.fillRect(tx-3, ty-1, 6, 6);
+    ctx.fillStyle='#3a2a10'; ctx.beginPath(); ctx.arc(tx,ty+1,1.3,0,TAU); ctx.fill();
+    // inviting glint
+    const tw=0.5+0.5*Math.sin(Game.time*4 + tx);
+    ctx.globalAlpha=tw*0.8; ctx.fillStyle='#fff6d0';
+    ctx.beginPath(); ctx.arc(tx-w+6, ty-9, 1.6, 0, TAU); ctx.fill();
+    ctx.globalAlpha=1;
+  } else {
+    // opened — lid hinged back, dark empty interior
+    ctx.fillStyle='#1c140a'; ctx.fillRect(tx-w+2, ty-1, w*2-4, h-3);
+    ctx.fillStyle='#6a4423';
+    ctx.beginPath(); ctx.moveTo(tx-w,ty-2); ctx.quadraticCurveTo(tx,ty-20,tx+w,ty-9); ctx.lineTo(tx+w,ty-6); ctx.quadraticCurveTo(tx,ty-16,tx-w,ty-2); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#2e1d0e'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Big standing structures: bone arch span, mine entrance, shrine totem.
+function drawLandmarkStructures(ox, oy) {
+  for (const lm of LANDMARKS) {
+    if (!onScreen(lm.x,lm.y,200)) continue;
+    const tx=lm.x-ox, ty=lm.y-oy;
+    if (lm.type==='arch') {
+      // span of bone between the two leg props
+      ctx.save(); ctx.strokeStyle='#d8cdb0'; ctx.lineWidth=16; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(tx-70,ty-30); ctx.quadraticCurveTo(tx,ty-120,tx+70,ty-30); ctx.stroke();
+      ctx.strokeStyle='#b8ad90'; ctx.lineWidth=6;
+      ctx.beginPath(); ctx.moveTo(tx-70,ty-30); ctx.quadraticCurveTo(tx,ty-120,tx+70,ty-30); ctx.stroke();
+      // skull keystone
+      ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(tx,ty-104,12,0,TAU); ctx.fill();
+      ctx.fillStyle='#3a3020'; ctx.beginPath(); ctx.arc(tx-4,ty-106,2.5,0,TAU); ctx.arc(tx+4,ty-106,2.5,0,TAU); ctx.fill();
+      ctx.restore();
+    } else if (lm.type==='mine') {
+      ctx.save();
+      // timber frame
+      ctx.fillStyle='#3a2a18'; ctx.fillRect(tx-34,ty-44,10,52); ctx.fillRect(tx+24,ty-44,10,52); ctx.fillRect(tx-34,ty-50,68,12);
+      // dark mouth (open) or boarded (collapsed)
+      ctx.fillStyle='#0c0a07'; ctx.beginPath(); ctx.ellipse(tx,ty-12,24,30,0,0,TAU); ctx.fill();
+      if (!lm.opened) {
+        ctx.strokeStyle='#5a4226'; ctx.lineWidth=7;
+        for (let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(tx-24,ty-22+i*14); ctx.lineTo(tx+24,ty-18+i*14); ctx.stroke(); }
+        ctx.fillStyle='#7a6038'; ctx.fillRect(tx-30,ty-2,60,8); // rubble pile
+      } else {
+        // faint cold draft from the opened shaft
+        ctx.globalAlpha=0.35; ctx.fillStyle='#2a3a4a'; ctx.beginPath(); ctx.ellipse(tx,ty-12,18,24,0,0,TAU); ctx.fill();
+      }
+      ctx.restore();
+    } else if (lm.type==='shrine') {
+      ctx.save();
+      // stacked bone totem
+      ctx.fillStyle='#cdbf9c'; ctx.fillRect(tx-6,ty-46,12,46);
+      ctx.fillStyle='#e0d4b2'; ctx.beginPath(); ctx.arc(tx,ty-52,11,0,TAU); ctx.fill();
+      ctx.fillStyle='#2a2418'; ctx.beginPath(); ctx.arc(tx-4,ty-54,2,0,TAU); ctx.arc(tx+4,ty-54,2,0,TAU); ctx.fill();
+      ctx.strokeStyle='#b8a06a'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(tx-16,ty-30); ctx.lineTo(tx+16,ty-26); ctx.stroke();
+      ctx.restore();
+    }
+    // name plate when the player is near a landmark
+    if (dist(Game.player.x,Game.player.y,lm.x,lm.y) < 200) {
+      ctx.fillStyle='rgba(20,14,6,0.6)'; ctx.font='12px Georgia'; ctx.textAlign='center';
+      const w=ctx.measureText(lm.name).width+12;
+      ctx.fillRect(tx-w/2, ty+14, w, 16);
+      ctx.fillStyle='#cdbf9c'; ctx.fillText(lm.name, tx, ty+26);
+    }
+  }
+}
+
+// Town clutter + desert solids — shaded for a hand-drawn, readable look.
+function drawProps(ox, oy) {
+  for (const p of PROPS) {
+    if (!onScreen(p.x,p.y,46)) continue;
+    const tx=p.x-ox, ty=p.y-oy;
+    // soft contact shadow
+    ctx.fillStyle='rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(tx,ty+p.r*0.55,p.r*0.95,p.r*0.42,0,0,TAU); ctx.fill();
+    switch(p.type){
+      case 'barrel': {
+        const r=p.r;
+        // staved body with a left-lit gradient
+        const g=ctx.createLinearGradient(tx-r,0,tx+r,0);
+        g.addColorStop(0,'#8a5e30'); g.addColorStop(0.45,'#6a4626'); g.addColorStop(1,'#4a2f18');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(tx,ty,r*0.82,r,0,0,TAU); ctx.fill();
+        // vertical staves
+        ctx.strokeStyle='rgba(40,26,12,0.5)'; ctx.lineWidth=1;
+        for (let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(tx+i*r*0.3, ty-r*0.92); ctx.lineTo(tx+i*r*0.3, ty+r*0.92); ctx.stroke(); }
+        // iron hoops
+        ctx.strokeStyle='#2a211a'; ctx.lineWidth=2.5;
+        for (const yy of [-0.55,0.55]){ ctx.beginPath(); ctx.ellipse(tx,ty+yy*r,r*0.82,r*0.3,0,0,TAU); ctx.stroke(); }
+        // lid
+        ctx.fillStyle='#7a5630'; ctx.beginPath(); ctx.ellipse(tx,ty-r*0.86,r*0.7,r*0.26,0,0,TAU); ctx.fill();
+        ctx.strokeStyle='#3a2814'; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.fillStyle='rgba(255,235,190,0.25)'; ctx.beginPath(); ctx.ellipse(tx-r*0.2,ty-r*0.9,r*0.28,r*0.1,0,0,TAU); ctx.fill();
+        break;
+      }
+      case 'crate': {
+        const r=p.r;
+        // front face
+        ctx.fillStyle='#7a5630'; ctx.fillRect(tx-r,ty-r*0.7,r*2,r*1.7);
+        // lighter top face (fake 3/4 view)
+        ctx.fillStyle='#946a3a';
+        ctx.beginPath(); ctx.moveTo(tx-r,ty-r*0.7); ctx.lineTo(tx-r*0.7,ty-r*1.05); ctx.lineTo(tx+r*1.3,ty-r*1.05); ctx.lineTo(tx+r,ty-r*0.7); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle='#2e1d0e'; ctx.lineWidth=2; ctx.strokeRect(tx-r,ty-r*0.7,r*2,r*1.7);
+        ctx.stroke();
+        // plank seams + diagonal brace
+        ctx.strokeStyle='rgba(40,26,12,0.5)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(tx-r,ty); ctx.lineTo(tx+r,ty); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tx-r,ty+r*1.0); ctx.lineTo(tx+r,ty-r*0.7); ctx.stroke();
+        // corner brackets
+        ctx.fillStyle='#2a2620';
+        ctx.fillRect(tx-r,ty-r*0.7,3,3); ctx.fillRect(tx+r-3,ty-r*0.7,3,3);
+        ctx.fillRect(tx-r,ty+r-3,3,3); ctx.fillRect(tx+r-3,ty+r-3,3,3);
+        break;
+      }
+      case 'post':
+        // hitching post: rounded cap, rail, rope loop
+        ctx.fillStyle='#5a3f24'; ctx.fillRect(tx-3,ty-16,6,22);
+        ctx.fillStyle='#6a4a2a'; ctx.fillRect(tx-3,ty-16,2.5,22);   // lit edge
+        ctx.fillStyle='#4a3320'; ctx.beginPath(); ctx.arc(tx,ty-16,4,0,TAU); ctx.fill();
+        ctx.fillStyle='#3a2a18'; ctx.fillRect(tx-7,ty-12,14,3.5);   // rail
+        ctx.strokeStyle='#caa877'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(tx+5,ty-9,2.4,0,TAU); ctx.stroke(); // rope loop
+        break;
+      case 'trough': {
+        const r=p.r;
+        ctx.fillStyle='#5a4026'; ctx.fillRect(tx-r,ty-8,r*2,16);     // wood box
+        ctx.strokeStyle='#2e1d0e'; ctx.lineWidth=2; ctx.strokeRect(tx-r,ty-8,r*2,16);
+        ctx.fillStyle='#3a2a18'; ctx.fillRect(tx-r,ty-8,4,16); ctx.fillRect(tx+r-4,ty-8,4,16); // end planks
+        // water with a glint
+        const wg=ctx.createLinearGradient(0,ty-5,0,ty+4); wg.addColorStop(0,'#5a8a9a'); wg.addColorStop(1,'#2f5564');
+        ctx.fillStyle=wg; ctx.fillRect(tx-r+4,ty-5,r*2-8,8);
+        ctx.fillStyle='rgba(220,245,255,0.5)'; ctx.fillRect(tx-r+7,ty-4,r*0.7,1.5);
+        break;
+      }
+      case 'wagon': {
+        ctx.save(); ctx.translate(tx,ty); ctx.rotate(p.seed);
+        // wheels behind
+        ctx.fillStyle='#3a2a18'; ctx.strokeStyle='#caa877'; ctx.lineWidth=2;
+        for (const wx of [-20,20]){ ctx.beginPath(); ctx.arc(wx,16,8,0,TAU); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(wx-6,16); ctx.lineTo(wx+6,16); ctx.moveTo(wx,10); ctx.lineTo(wx,22); ctx.stroke(); }
+        // bed
+        ctx.fillStyle='#5a4026'; ctx.fillRect(-22,-12,44,24);
+        ctx.strokeStyle='#2e2012'; ctx.lineWidth=3; ctx.strokeRect(-22,-12,44,24);
+        ctx.strokeStyle='rgba(40,26,12,0.5)'; ctx.lineWidth=1;
+        for (let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(-22,i*8); ctx.lineTo(22,i*8); ctx.stroke(); }
+        // tattered canvas cover arch
+        ctx.fillStyle='rgba(225,215,190,0.85)';
+        ctx.beginPath(); ctx.moveTo(-20,-12); ctx.quadraticCurveTo(0,-34,20,-12); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle='#9a8e72'; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.restore(); break;
+      }
+      case 'boneleg':
+        // weathered bone with knobby ends
+        ctx.fillStyle='#e2d8bc'; ctx.fillRect(tx-6,ty-34,12,44);
+        ctx.fillStyle='#c8bd9c'; ctx.fillRect(tx-6,ty-34,4,44);
+        ctx.fillStyle='#e8dec2';
+        ctx.beginPath(); ctx.arc(tx-4,ty-34,6,0,TAU); ctx.arc(tx+4,ty-34,6,0,TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(tx-4,ty+8,6,0,TAU); ctx.arc(tx+4,ty+8,6,0,TAU); ctx.fill();
+        break;
+      case 'spire': {
+        const r=p.r;
+        ctx.fillStyle='#6a5c44'; ctx.beginPath();
+        ctx.moveTo(tx-r*0.6,ty+r); ctx.lineTo(tx,ty-r*1.4); ctx.lineTo(tx+r*0.6,ty+r); ctx.closePath(); ctx.fill();
+        // shaded right face
+        ctx.fillStyle='#4e4332'; ctx.beginPath();
+        ctx.moveTo(tx,ty-r*1.4); ctx.lineTo(tx+r*0.6,ty+r); ctx.lineTo(tx+r*0.15,ty+r); ctx.closePath(); ctx.fill();
+        // strata lines
+        ctx.strokeStyle='rgba(40,32,20,0.4)'; ctx.lineWidth=1;
+        for (let i=1;i<=3;i++){ const yy=ty+r - i*r*0.55; ctx.beginPath(); ctx.moveTo(tx-r*0.45+i*2,yy); ctx.lineTo(tx+r*0.45-i*2,yy); ctx.stroke(); }
+        break;
+      }
+    }
+  }
+}
+
+function drawWantedBoard(ox, oy) {
+  const b=WANTED_BOARD; if (!onScreen(b.x,b.y,60)) return;
+  const tx=b.x-ox, ty=b.y-oy;
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(tx,ty+18,22,7,0,0,TAU); ctx.fill();
+  ctx.fillStyle='#4a3320'; ctx.fillRect(tx-22,ty-30,44,40);   // board
+  ctx.strokeStyle='#2a1d10'; ctx.lineWidth=3; ctx.strokeRect(tx-22,ty-30,44,40);
+  ctx.fillStyle='#2a1d10'; ctx.fillRect(tx-3,ty+8,6,12);                   // post
+  // pinned papers
+  ctx.fillStyle='#cdbf9c'; ctx.fillRect(tx-16,ty-24,14,16); ctx.fillRect(tx+3,ty-22,13,15);
+  ctx.fillStyle='#7a1818'; ctx.font='6px Georgia'; ctx.textAlign='center';
+  ctx.fillText('WANTED', tx-9, ty-16);
+  ctx.restore();
+}
+
+// The Manhunt: search-zone ring at your last-seen spot + faint lawman vision cones.
+function drawManhunt(ox, oy) {
+  if (Wanted.level<=0) return;
+  ctx.save();
+  if (Wanted.searching) {
+    const lx=Wanted.lastSeen.x-ox, ly=Wanted.lastSeen.y-oy, R=Wanted.searchRadius;
+    const fl=0.35+0.25*Math.sin(Game.time*5);
+    ctx.globalAlpha=fl*0.14; ctx.fillStyle='#e8c45a';
+    ctx.beginPath(); ctx.arc(lx,ly,R,0,TAU); ctx.fill();
+    ctx.globalAlpha=fl; ctx.strokeStyle='#e8c45a'; ctx.lineWidth=2; ctx.setLineDash([14,10]);
+    ctx.beginPath(); ctx.arc(lx,ly,R,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // Faint vision cones on lawmen so you can slip between their sightlines
+  ctx.globalAlpha=0.10; ctx.fillStyle='#ffcf6a';
+  for (const e of Game.enemies) {
+    if (e.kind!=='lawman'||e.dead) continue;
+    const tx=e.x-ox, ty=e.y-oy;
+    if (tx<-CFG.ENEMY_VIEW||tx>CFG.VIEW_W+CFG.ENEMY_VIEW||ty<-CFG.ENEMY_VIEW||ty>CFG.VIEW_H+CFG.ENEMY_VIEW) continue;
+    ctx.beginPath(); ctx.moveTo(tx,ty);
+    ctx.arc(tx,ty,CFG.ENEMY_VIEW*0.85, e.aim-0.42, e.aim+0.42); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Dead Eye: desaturating red vignette + pulsing target rings on enemies.
+function drawDeadEye() {
+  const p = Game.player;
+  if (!p.deadeyeActive) return;
+  const ox=Camera.ox, oy=Camera.oy;
+  ctx.save();
+  ctx.fillStyle='rgba(70,20,20,0.20)'; ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  const g=ctx.createRadialGradient(CFG.VIEW_W/2,CFG.VIEW_H/2,120,CFG.VIEW_W/2,CFG.VIEW_H/2,CFG.VIEW_W*0.62);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(24,0,0,0.6)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  // Target rings on on-screen enemies
+  for (const e of Game.enemies) {
+    if (e.dead) continue;
+    const tx=e.x-ox, ty=e.y-oy;
+    if (tx<-30||tx>CFG.VIEW_W+30||ty<-30||ty>CFG.VIEW_H+30) continue;
+    ctx.strokeStyle='rgba(255,70,70,0.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(tx,ty,e.r+8+2*Math.sin(Game.time*10),0,TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx-e.r-13,ty); ctx.lineTo(tx-e.r-4,ty); ctx.moveTo(tx+e.r+4,ty); ctx.lineTo(tx+e.r+13,ty);
+    ctx.moveTo(tx,ty-e.r-13); ctx.lineTo(tx,ty-e.r-4); ctx.moveTo(tx,ty+e.r+4); ctx.lineTo(tx,ty+e.r+13);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawReticle() {
+  if (Game.state!==STATE.PLAY) return;
+  const mx=Input.mouse.x, my=Input.mouse.y;
+  ctx.save();
+  ctx.strokeStyle = Game.player.reloading ? 'rgba(200,120,80,0.9)' : 'rgba(230,210,160,0.9)';
+  ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(mx,my,11,0,TAU); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(mx-18,my); ctx.lineTo(mx-6,my);
+  ctx.moveTo(mx+6,my); ctx.lineTo(mx+18,my);
+  ctx.moveTo(mx,my-18); ctx.lineTo(mx,my-6);
+  ctx.moveTo(mx,my+6); ctx.lineTo(mx,my+18);
+  ctx.stroke();
+  ctx.fillStyle=ctx.strokeStyle; ctx.fillRect(mx-1,my-1,2,2);
+  ctx.restore();
+}
+
+function drawLightingTint() {
+  // Gentle warm/cool wash that drifts over time — purely atmospheric.
+  const warm = (Math.sin(Game.dayPhase*TAU)*0.5+0.5);
+  ctx.save();
+  ctx.globalCompositeOperation='overlay';
+  ctx.globalAlpha=0.12;
+  ctx.fillStyle = warm>0.5 ? '#ffb060' : '#3050a0';
+  ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  ctx.restore();
+  // Player hurt red flash
+  if (Game.player.hurtFlash>0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(Game.player.hurtFlash,0,0.5);
+    ctx.fillStyle='#8a1010';
+    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+    ctx.restore();
+  }
+}
+
+/* ----- HUD ----- */
+function drawHUD() {
+  if (Game.state===STATE.START) return;
+  const p = Game.player;
+  ctx.save();
+  ctx.textAlign='left';
+
+  // Panel backdrop
+  ctx.fillStyle='rgba(20,14,6,0.6)';
+  ctx.fillRect(16, 16, 250, 166);
+  ctx.strokeStyle='rgba(120,90,50,0.7)'; ctx.lineWidth=2;
+  ctx.strokeRect(16,16,250,166);
+
+  // Health bar
+  ctx.fillStyle='#3a1010'; ctx.fillRect(28, 30, 200, 18);
+  const hpw = 200 * clamp(p.hp/CFG.PLAYER_MAX_HP,0,1);
+  const hg = ctx.createLinearGradient(28,0,228,0);
+  hg.addColorStop(0,'#b52020'); hg.addColorStop(1,'#e85a3a');
+  ctx.fillStyle=hg; ctx.fillRect(28,30,hpw,18);
+  ctx.strokeStyle='#1a0a0a'; ctx.lineWidth=2; ctx.strokeRect(28,30,200,18);
+  ctx.fillStyle='#f0d8a8'; ctx.font='bold 13px Georgia';
+  ctx.fillText('HP ' + Math.ceil(p.hp), 32, 44);
+
+  // Ammo cylinder (6 chambers)
+  ctx.fillStyle='#e8d5a8'; ctx.font='13px Georgia';
+  ctx.fillText(p.reloading ? 'RELOADING…' : 'REVOLVER', 28, 66);
+  for (let i=0;i<CFG.CYLINDER;i++) {
+    const cx=34+i*22, cy=82;
+    ctx.beginPath(); ctx.arc(cx,cy,8,0,TAU);
+    ctx.fillStyle = i<p.ammo ? '#e8c45a' : '#3a2e1a';
+    ctx.fill();
+    ctx.strokeStyle='#1a120a'; ctx.lineWidth=2; ctx.stroke();
+  }
+
+  // Dynamite count + dash readiness row
+  ctx.textAlign='left';
+  ctx.fillStyle='#e88a3a'; ctx.font='13px Georgia';
+  ctx.fillText('🧨 Dynamite ×' + p.dynamite + '  [Q]', 28, 104);
+  // Dash pip: lit when ready, dim + shrinking while on cooldown
+  const ready = p.dashCool<=0;
+  const frac = ready ? 1 : 1 - clamp(p.dashCool/CFG.DASH_COOLDOWN,0,1);
+  ctx.fillStyle = ready ? '#7fd0e8' : 'rgba(120,150,170,0.4)';
+  ctx.fillRect(28, 112, 90*frac, 8);
+  ctx.strokeStyle='#1a120a'; ctx.lineWidth=1.5; ctx.strokeRect(28,112,90,8);
+  ctx.fillStyle = ready ? '#bfeaf5' : '#6a7a82'; ctx.font='12px Georgia';
+  ctx.fillText(ready ? 'DASH ready [Shift]' : 'Dash…', 124, 120);
+
+  // Dead Eye meter (hold Right Mouse)
+  const de = clamp(p.deadeye/CFG.DEADEYE_MAX,0,1);
+  ctx.fillStyle='#2a1414'; ctx.fillRect(28,130,210,10);
+  const deg = ctx.createLinearGradient(28,0,238,0);
+  deg.addColorStop(0,'#a01818'); deg.addColorStop(1,'#e8b23a');
+  ctx.fillStyle = p.deadeyeActive ? '#ffde7a' : deg; ctx.fillRect(28,130,210*de,10);
+  ctx.strokeStyle='#1a0a0a'; ctx.lineWidth=1.5; ctx.strokeRect(28,130,210,10);
+  ctx.fillStyle='#e0c088'; ctx.font='11px Georgia'; ctx.textAlign='left';
+  ctx.fillText(p.deadeyeActive ? 'DEAD EYE ACTIVE' : 'Dead Eye [Right Mouse]', 30, 139);
+
+  // Tools row
+  ctx.fillStyle='#b8a880'; ctx.font='12px Georgia';
+  ctx.fillText('Lasso [F]   Whistle [H]   Lockpick', 28, 158);
+
+  // Money / score (top-right)
+  ctx.textAlign='right';
+  ctx.fillStyle='rgba(20,14,6,0.6)'; ctx.fillRect(CFG.VIEW_W-210,16,194,76);
+  ctx.strokeStyle='rgba(120,90,50,0.7)'; ctx.strokeRect(CFG.VIEW_W-210,16,194,76);
+  ctx.fillStyle='#e8d56a'; ctx.font='bold 20px Georgia';
+  ctx.fillText('$' + p.money, CFG.VIEW_W-26, 42);
+  ctx.fillStyle='#c8b890'; ctx.font='13px Georgia';
+  ctx.fillText('Score ' + Game.score + '   Kills ' + Game.kills, CFG.VIEW_W-26, 62);
+  ctx.fillStyle='#9a8a6a'; ctx.font='12px Georgia';
+  ctx.fillText('Trouble: ' + Game.diff().label, CFG.VIEW_W-26, 80);
+
+  // Wanted stars (top-centre) — flash while the law is searching for you
+  ctx.textAlign='center';
+  const stars = Wanted.level;
+  const flashOn = !Wanted.searching || (Math.floor(Game.time*6)%2===0);
+  ctx.font='22px Georgia';
+  for (let i=0;i<CFG.WANTED_MAX;i++) {
+    ctx.fillStyle = (i<stars && flashOn) ? '#e8c45a' : 'rgba(80,66,40,0.6)';
+    ctx.fillText('★', CFG.VIEW_W/2 - 56 + i*28, 40);
+  }
+  if (stars>0) {
+    const tag = Game.playerInCamp() ? 'LAYING LOW' : (Wanted.searching ? 'SEARCHING…' : 'WANTED');
+    ctx.fillStyle = Wanted.searching ? '#e8c45a' : '#c89060'; ctx.font='11px Georgia';
+    ctx.fillText(tag, CFG.VIEW_W/2, 56);
+  }
+
+  // Interaction prompt
+  if (Game.interactPrompt) {
+    let txt='';
+    const ipt = Game.interactPrompt;
+    if (ipt.mount) txt='[E] Mount horse';
+    else if (ipt.dismount) txt='[E] Dismount';
+    else txt='[E] ' + (ipt.label || ipt.name);
+    ctx.fillStyle='rgba(20,14,6,0.8)';
+    const w=ctx.measureText(txt).width+30;
+    ctx.font='16px Georgia';
+    ctx.fillRect(CFG.VIEW_W/2-w/2, CFG.VIEW_H-110, w, 30);
+    ctx.strokeStyle='rgba(160,120,60,0.8)'; ctx.strokeRect(CFG.VIEW_W/2-w/2, CFG.VIEW_H-110, w, 30);
+    ctx.fillStyle='#f0d8a8'; ctx.textAlign='center';
+    ctx.fillText(txt, CFG.VIEW_W/2, CFG.VIEW_H-90);
+  }
+
+  // Toast message
+  if (Game.msgTimer>0) {
+    ctx.globalAlpha = clamp(Game.msgTimer,0,1);
+    ctx.fillStyle='rgba(20,14,6,0.85)';
+    ctx.font='17px Georgia'; ctx.textAlign='center';
+    const w=ctx.measureText(Game.msg).width+40;
+    ctx.fillRect(CFG.VIEW_W/2-w/2, CFG.VIEW_H-150, w, 34);
+    ctx.strokeStyle='rgba(160,120,60,0.8)'; ctx.strokeRect(CFG.VIEW_W/2-w/2, CFG.VIEW_H-150, w, 34);
+    ctx.fillStyle='#f0d8a8';
+    ctx.fillText(Game.msg, CFG.VIEW_W/2, CFG.VIEW_H-128);
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+
+function drawMinimap() {
+  if (Game.state===STATE.START) return;
+  const MW=180, MH=180, MX=CFG.VIEW_W-MW-20, MY=CFG.VIEW_H-MH-20;
+  const sx=MW/CFG.WORLD_W, sy=MH/CFG.WORLD_H;
+  ctx.save();
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='rgba(20,14,6,0.78)';
+  ctx.fillRect(MX,MY,MW,MH);
+  ctx.strokeStyle='rgba(140,104,56,0.9)'; ctx.lineWidth=2; ctx.strokeRect(MX,MY,MW,MH);
+  // Buildings + camp
+  ctx.fillStyle='#7a5a34';
+  for (const b of BUILDINGS) ctx.fillRect(MX+b.x*sx, MY+b.y*sy, Math.max(2,b.w*sx), Math.max(2,b.h*sy));
+  // Camp marked in fire-orange so home base is easy to find
+  ctx.fillStyle='#d8893a';
+  for (const b of CAMP) ctx.fillRect(MX+b.x*sx-1, MY+b.y*sy-1, Math.max(3,b.w*sx), Math.max(3,b.h*sy));
+  // Roads
+  ctx.fillStyle='rgba(150,124,80,0.4)';
+  ctx.fillRect(MX+(TOWN_CX-70)*sx, MY, 140*sx, MH);
+  ctx.fillRect(MX, MY+(TOWN_CY-60)*sy, MW, 120*sy);
+  // Landmarks (pale diamonds) — give the wilderness navigation targets
+  ctx.fillStyle='#bcae86';
+  for (const lm of LANDMARKS) {
+    if (lm.type==='riverbed'||lm.type==='ghosttrail') continue;
+    const mx=MX+lm.x*sx, my=MY+lm.y*sy;
+    ctx.beginPath(); ctx.moveTo(mx,my-2.5); ctx.lineTo(mx+2.5,my); ctx.lineTo(mx,my+2.5); ctx.lineTo(mx-2.5,my); ctx.closePath(); ctx.fill();
+  }
+  // Undug caches (faint specks) once you're roughly near them
+  ctx.fillStyle='rgba(232,213,106,0.5)';
+  for (const sc of SECRETS) { if (!sc.found && dist(Game.player.x,Game.player.y,sc.x,sc.y)<700) ctx.fillRect(MX+sc.x*sx-1, MY+sc.y*sy-1, 2, 2); }
+  // Manhunt search zone
+  if (Wanted.level>0) {
+    const mzx=MX+Wanted.lastSeen.x*sx, mzy=MY+Wanted.lastSeen.y*sy, mzr=Math.max(3,Wanted.searchRadius*sx);
+    ctx.setLineDash([4,3]); ctx.lineWidth=1.5;
+    ctx.strokeStyle = Wanted.searching ? `rgba(232,196,90,${(0.5+0.4*Math.sin(Game.time*5)).toFixed(2)})` : 'rgba(232,90,58,0.85)';
+    ctx.beginPath(); ctx.arc(mzx,mzy,mzr,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // Enemies
+  for (const e of Game.enemies) {
+    ctx.fillStyle = e.kind==='lawman' ? '#6a9ae8' : '#e85a3a';
+    ctx.fillRect(MX+e.x*sx-1.5, MY+e.y*sy-1.5, 3, 3);
+  }
+  // Pickups
+  ctx.fillStyle='#e8d56a';
+  for (const pk of Game.pickups) ctx.fillRect(MX+pk.x*sx-1, MY+pk.y*sy-1, 2, 2);
+  // Player
+  ctx.fillStyle='#fff';
+  const px=MX+Game.player.x*sx, py=MY+Game.player.y*sy;
+  ctx.beginPath(); ctx.arc(px,py,3,0,TAU); ctx.fill();
+  // Player facing
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(Game.player.aim)*7, py+Math.sin(Game.player.aim)*7); ctx.stroke();
+  ctx.restore();
+}
+
+/* ----- Full-screen menus ----- */
+function panelBG() {
+  ctx.fillStyle='rgba(10,7,3,0.82)';
+  ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+}
+function titleText(t, y, size, color) {
+  ctx.fillStyle=color||'#e8d5a8'; ctx.textAlign='center';
+  ctx.font='bold '+size+'px Georgia';
+  ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=8;
+  ctx.fillText(t, CFG.VIEW_W/2, y);
+  ctx.shadowBlur=0;
+}
+
+function drawStartScreen() {
+  panelBG();
+  // Sun on horizon flourish
+  ctx.save();
+  const g=ctx.createRadialGradient(CFG.VIEW_W/2,210,20,CFG.VIEW_W/2,210,260);
+  g.addColorStop(0,'rgba(220,150,70,0.5)'); g.addColorStop(1,'rgba(220,150,70,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,CFG.VIEW_W,460);
+  ctx.restore();
+
+  titleText("REDEMPTION'S EDGE", 200, 64, '#e8c45a');
+  ctx.fillStyle='#c8a878'; ctx.font='italic 20px Georgia'; ctx.textAlign='center';
+  ctx.fillText('A Haunted Frontier Outlaw Tale', CFG.VIEW_W/2, 240);
+
+  const lore = [
+    "You are Chris King — “Dckslinger” — outlaw, and Darryl's biggest headache.",
+    "Hicksville is crooked, broke, and pretending the desert demons are just a rumor.",
+    "Six in the cylinder, a camp at your back, nothing to lose but your soul.",
+    "Be a folk hero, rob the place blind, or stumble into redemption the hard way.",
+  ];
+  ctx.fillStyle='#d8c4a0'; ctx.font='16px Georgia';
+  lore.forEach((l,i)=> ctx.fillText(l, CFG.VIEW_W/2, 300+i*26));
+
+  ctx.fillStyle='#9a8460'; ctx.font='14px Georgia';
+  ctx.fillText("WASD move · Mouse aim · Click fire · RMB Dead Eye · Shift dash · Q dynamite", CFG.VIEW_W/2, 444);
+  ctx.fillText("F lasso · H whistle · R reload · E interact/mount · ESC pause", CFG.VIEW_W/2, 462);
+
+  // --- Difficulty selector (1 / 2 / 3) ---
+  ctx.fillStyle='#c8a878'; ctx.font='15px Georgia';
+  ctx.fillText('CHOOSE YOUR TROUBLE — press 1 · 2 · 3', CFG.VIEW_W/2, 498);
+  const pills = [
+    { key:'1', id:'easy',   name:'Easy',   note:'the gentle ride' },
+    { key:'2', id:'normal', name:'Normal', note:'a fair fight' },
+    { key:'3', id:'hard',   name:'Hard',   note:'a short life' },
+  ];
+  const pw=190, ph=46, gap=18, total=pills.length*pw+(pills.length-1)*gap;
+  let px = CFG.VIEW_W/2 - total/2;
+  pills.forEach(p=>{
+    const sel = Game.difficulty===p.id;
+    ctx.fillStyle = sel ? 'rgba(180,110,40,0.55)' : 'rgba(40,28,14,0.6)';
+    ctx.fillRect(px, 512, pw, ph);
+    ctx.strokeStyle = sel ? '#e8c45a' : 'rgba(120,90,50,0.7)';
+    ctx.lineWidth = sel ? 3 : 1.5; ctx.strokeRect(px, 512, pw, ph);
+    ctx.fillStyle = sel ? '#fff0c0' : '#c8b890';
+    ctx.font='bold 18px Georgia'; ctx.textAlign='center';
+    ctx.fillText(`[${p.key}] ${p.name}`, px+pw/2, 535);
+    ctx.fillStyle = sel ? '#e8d5a8' : '#8a7a5a'; ctx.font='italic 12px Georgia';
+    ctx.fillText(p.note, px+pw/2, 551);
+    px += pw+gap;
+  });
+
+  // Blinking prompt
+  if (Math.floor(Game.time*2)%2===0 || Game.time===0) {
+    titleText('Press any other key to ride', 600, 26, '#e8c45a');
+  }
+}
+
+function drawPauseScreen() {
+  panelBG();
+  titleText('PAUSED', 320, 56, '#e8c45a');
+  ctx.fillStyle='#d8c4a0'; ctx.font='18px Georgia'; ctx.textAlign='center';
+  ctx.fillText('Press ESC or P to resume', CFG.VIEW_W/2, 380);
+  ctx.fillText('Press N to abandon and start over', CFG.VIEW_W/2, 410);
+}
+
+function drawGameOver() {
+  panelBG();
+  titleText('YOU DIED', 280, 64, '#b52020');
+  ctx.fillStyle='#d8c4a0'; ctx.font='20px Georgia'; ctx.textAlign='center';
+  ctx.fillText('The frontier claims another soul.', CFG.VIEW_W/2, 330);
+  ctx.fillStyle='#e8d56a'; ctx.font='22px Georgia';
+  ctx.fillText(`Final Score ${Game.score}   •   Kills ${Game.kills}   •   $${Game.player.money}`, CFG.VIEW_W/2, 380);
+
+  // Restart button
+  const bw=260, bh=56, bx=CFG.VIEW_W/2-bw/2, by=440;
+  GO_BTN = {x:bx,y:by,w:bw,h:bh};
+  const hover = Input.mouse.x>bx&&Input.mouse.x<bx+bw&&Input.mouse.y>by&&Input.mouse.y<by+bh;
+  ctx.fillStyle = hover ? '#7a4a22' : '#5a3618';
+  ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle='#c89050'; ctx.lineWidth=3; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle='#f0d8a8'; ctx.font='bold 24px Georgia';
+  ctx.fillText('RIDE AGAIN', CFG.VIEW_W/2, by+37);
+  ctx.fillStyle='#9a8460'; ctx.font='14px Georgia';
+  ctx.fillText('(or press Enter / R)', CFG.VIEW_W/2, by+82);
+}
+let GO_BTN = null;
+
+
+"use strict";
+/* Redemption's Edge — main.js
+   Part of the modular build. Loaded as a classic <script> in index.html (order matters).
+   See docs/ROADMAP.md for the project map. */
+
+/* ---------------------------------------------------------------------------
+   12. STATE TRANSITIONS + MAIN LOOP
+   --------------------------------------------------------------------------- */
+function handleMeta() {
+  // Global key handling for state machine (independent of play update).
+  if (Game.state===STATE.START) {
+    // 1/2/3 pick difficulty without starting; any other key begins.
+    if (Input.hit('1')) { Game.difficulty='easy';   Audio.ensure(); Audio.click(); }
+    else if (Input.hit('2')) { Game.difficulty='normal'; Audio.ensure(); Audio.click(); }
+    else if (Input.hit('3')) { Game.difficulty='hard';   Audio.ensure(); Audio.click(); }
+    else if (Object.keys(Input.pressed).length>0 || Input.mouse.down) {
+      Audio.ensure(); Audio.resume();
+      Game.reset();              // rebuild the world with the chosen difficulty
+      Game.state=STATE.PLAY;
+    }
+  } else if (Game.state===STATE.PLAY) {
+    if (Input.hit('escape') || Input.hit('p')) Game.state=STATE.PAUSE;
+  } else if (Game.state===STATE.PAUSE) {
+    if (Input.hit('escape') || Input.hit('p')) Game.state=STATE.PLAY;
+    if (Input.hit('n')) { Game.reset(); Game.state=STATE.PLAY; }
+  } else if (Game.state===STATE.GAMEOVER) {
+    if (Input.hit('enter') || Input.hit('r')) { Game.reset(); Game.state=STATE.PLAY; }
+    if (Input.mouse.down && GO_BTN) {
+      const m=Input.mouse;
+      if (m.x>GO_BTN.x&&m.x<GO_BTN.x+GO_BTN.w&&m.y>GO_BTN.y&&m.y<GO_BTN.y+GO_BTN.h) {
+        Input.mouse.down=false; Game.reset(); Game.state=STATE.PLAY;
+      }
+    }
+  }
+}
+
+let lastT = performance.now();
+function loop(now) {
+  let dt = (now - lastT) / 1000;
+  lastT = now;
+  // Clamp dt to avoid huge jumps after tab switches (prevents tunneling / chaos).
+  dt = Math.min(dt, 0.05);
+
+  handleMeta();
+  Game.update(dt);
+  render();
+  Input.endFrame();
+
+  requestAnimationFrame(loop);
+}
+
+/* ---------------------------------------------------------------------------
+   BOOTSTRAP
+   --------------------------------------------------------------------------- */
+Input.init(canvas);
+// Initialize audio on first user gesture (browser autoplay policy).
+addEventListener('keydown', ()=>{ Audio.ensure(); Audio.resume(); }, { once:true });
+addEventListener('mousedown', ()=>{ Audio.ensure(); Audio.resume(); }, { once:true });
+
+// Responsive scaling — keep 16:9, fit window while preserving internal resolution.
+function fit() {
+  const wrap = document.getElementById('game-wrap');
+  const scale = Math.min(wrap.clientWidth / CFG.VIEW_W, wrap.clientHeight / CFG.VIEW_H);
+  canvas.style.width  = (CFG.VIEW_W * scale) + 'px';
+  canvas.style.height = (CFG.VIEW_H * scale) + 'px';
+}
+addEventListener('resize', fit);
+
+Game.init();
+fit();
+requestAnimationFrame(loop);
+
+</script>
+
+</body>
+</html>

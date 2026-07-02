@@ -101,6 +101,17 @@ const CFG = {
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };
 
+// --- Sprite pipeline (art remodel). Flag OFF = current procedural art. ---
+// Flip USE_SPRITES to true to render Chris from sprite sheets (or auto-generated
+// placeholders until real PNGs are dropped in assets/characters/chris/).
+Object.assign(CFG, {
+  USE_SPRITES: false,        // master switch; false = drawGunslinger() fallback
+  SPRITE_PLACEHOLDER: true,  // if a real sheet is missing, synthesize a placeholder
+  SPRITE_DRAW_SCALE: 0.45,   // delivered art is 116px tall in-cell -> ~52px on screen
+  SPRITE_FOOT_OFFSET: 12,    // where the feet plant relative to the collision centre (matches shadow centre, entities.js:441)
+  SPRITE_DEBUG: false,       // overlay collision circle + anchor + anim/dir/frame
+});
+
 // Difficulty modes. Multipliers scale enemy stats off the base CFG values.
 //   hp/dmg   : enemy toughness & damage          (higher = harder)
 //   fireRate : multiplies fire cooldown          (LOWER = shoots more often = harder)

@@ -307,6 +307,26 @@ class Player {
     } else {
       this.deadeye = Math.min(CFG.DEADEYE_MAX, this.deadeye + CFG.DEADEYE_REGEN*dt);
     }
+
+    // --- Sprite animation state (visual only; reads state, never changes it) ---
+    if (CFG.USE_SPRITES && typeof ChrisSprites !== 'undefined' && ChrisSprites.ready) this.updateSpriteAnim(dt);
+  }
+
+  // Map existing gameplay state -> animation name + facing direction (RE-ART-006).
+  updateSpriteAnim(dt) {
+    const a = ChrisSprites.animator;
+    // Chris's gun always tracks the mouse, so face the aim direction.
+    a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
+    const speed = Math.hypot(this.vx, this.vy);
+    // Priority (low -> high): aim < walk < dash < shoot < mounted < hurt
+    let state = 'aim';
+    if (speed > 25) state = 'walk';
+    if (this.dashTimer > 0) state = 'dash';
+    if (this.recoil > 0.5 || (a.anim === 'shoot' && !a.finished)) state = 'shoot';  // let the one-shot finish
+    if (this.mounted) state = 'mounted';
+    if (this.hurtFlash > 0) state = 'hurt';
+    a.setAnimation(state);
+    a.update(dt);
   }
 
   throwLasso() {
@@ -422,11 +442,21 @@ class Player {
 
     if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
 
-    // Flicker while invulnerable (skip some frames) so the dodge reads visually.
-    if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;
-    drawGunslinger(ctx, tx, ty, this.aim, this.recoil, this.walkCycle,
-                   this.hurtFlash>0, this.mounted!=null);
-    ctx.globalAlpha = 1;
+    // Character art: sprite pipeline when enabled/ready/on-foot, else procedural fallback.
+    let drew = false;
+    if (CFG.USE_SPRITES && typeof ChrisSprites !== 'undefined' && ChrisSprites.ready && !this.mounted) {
+      if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;  // dash i-frame flicker
+      drew = drawChrisSprite(ctx, this, ox, oy);
+      ctx.globalAlpha = 1;
+    }
+    if (!drew) {
+      // Flicker while invulnerable (skip some frames) so the dodge reads visually.
+      if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;
+      drawGunslinger(ctx, tx, ty, this.aim, this.recoil, this.walkCycle,
+                     this.hurtFlash>0, this.mounted!=null);
+      ctx.globalAlpha = 1;
+    }
+    if (CFG.SPRITE_DEBUG && CFG.USE_SPRITES && typeof drawSpriteDebug !== 'undefined') drawSpriteDebug(ctx, this, ox, oy);
 
     // Lasso rope (transient)
     if (this.lassoAnim) {
