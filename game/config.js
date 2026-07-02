@@ -97,6 +97,14 @@ const CFG = {
   SEARCH_RADIUS_BASE: 250,   // search-zone size at 1 star
   SEARCH_RADIUS_PER: 90,     // + per additional star
   TILE: 64,
+
+  // --- M4 Mission Slice ---
+  M1_REWARD: 40,             // Welcome to Hicksville — Darryl's thanks
+  M2_RETURN_REWARD: 30,      // Bone-Dry Job — honest route (Darryl remembers it)
+  M2_FENCE_REWARD: 60,       // Bone-Dry Job — fence the supplies instead
+  M3_REWARD: 75,             // Trouble Under the Chapel
+  MISSION_ARRIVE_DIST: 300,  // how close "get there" objectives trigger
+  TITLE_CARD_TIME: 3.6,      // s a mission title card stays up
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };

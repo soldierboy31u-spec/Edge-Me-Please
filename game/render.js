@@ -67,6 +67,9 @@ function render() {
   for (const ex of Game.explosions) ex.render(ctx, ox, oy);
   for (const f of Game.floats) f.render(ctx, ox, oy);
 
+  // Mission objective chevron (world-space, above the scene)
+  drawMissionMarker(ox, oy);
+
   // Aim reticle
   drawReticle();
 
@@ -79,6 +82,9 @@ function render() {
   // HUD
   drawHUD();
   drawMinimap();
+
+  // Mission title card (over HUD, under full-screen menus)
+  drawTitleCard();
 
   if (Game.state===STATE.START) drawStartScreen();
   if (Game.state===STATE.PAUSE) drawPauseScreen();
@@ -559,6 +565,58 @@ function drawDeadEye() {
   ctx.restore();
 }
 
+/* ----- M4: mission objective marker + title cards ----- */
+function drawMissionMarker(ox, oy) {
+  if (Game.state!==STATE.PLAY || !Missions.marker) return;
+  const m = Missions.marker;
+  const tx = m.x-ox, ty = m.y-oy;
+  if (tx<-40||tx>CFG.VIEW_W+40||ty<-60||ty>CFG.VIEW_H+40) return;   // off-screen: minimap handles it
+  // Don't crowd the player when standing on the objective.
+  if (dist(Game.player.x, Game.player.y, m.x, m.y) < 70) return;
+  const bob = Math.sin(Game.time*4)*4;
+  const y = ty - 46 + bob;
+  ctx.save();
+  ctx.fillStyle='rgba(232,196,90,0.95)';
+  ctx.strokeStyle='rgba(40,26,8,0.9)'; ctx.lineWidth=2;
+  ctx.beginPath();                       // downward chevron
+  ctx.moveTo(tx, y+12); ctx.lineTo(tx-9, y); ctx.lineTo(tx-4, y);
+  ctx.lineTo(tx, y+5);  ctx.lineTo(tx+4, y); ctx.lineTo(tx+9, y);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawTitleCard() {
+  const c = Missions.card;
+  if (!c) return;
+  const dur = CFG.TITLE_CARD_TIME;
+  // Fade in fast, hold, fade out.
+  const a = clamp(Math.min(c.t/0.35, (dur-c.t)/0.7), 0, 1);
+  if (a<=0) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  // Letterbox bars
+  ctx.fillStyle='rgba(8,5,2,0.85)';
+  ctx.fillRect(0, 0, CFG.VIEW_W, 64);
+  ctx.fillRect(0, CFG.VIEW_H-64, CFG.VIEW_W, 64);
+  // Card text block
+  const cy = CFG.VIEW_H*0.30;
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(0,0,0,0.9)'; ctx.shadowBlur=10;
+  ctx.fillStyle='#c9a45a'; ctx.font='bold 17px Georgia';
+  ctx.fillText(c.kicker, CFG.VIEW_W/2, cy-34);
+  ctx.fillStyle='#f0dca8'; ctx.font='bold 44px Georgia';
+  ctx.fillText(c.title, CFG.VIEW_W/2, cy+10);
+  // Ornamental rule
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(201,164,90,0.9)'; ctx.lineWidth=2;
+  const rw = Math.min(420, ctx.measureText(c.title).width);
+  ctx.beginPath(); ctx.moveTo(CFG.VIEW_W/2-rw/2, cy+28); ctx.lineTo(CFG.VIEW_W/2+rw/2, cy+28); ctx.stroke();
+  ctx.fillStyle='#c9a45a';
+  ctx.beginPath(); ctx.arc(CFG.VIEW_W/2, cy+28, 3.5, 0, TAU); ctx.fill();
+  if (c.sub) { ctx.fillStyle='#e8d56a'; ctx.font='bold 20px Georgia'; ctx.fillText(c.sub, CFG.VIEW_W/2, cy+56); }
+  ctx.restore();
+}
+
 function drawReticle() {
   if (Game.state!==STATE.PLAY) return;
   const mx=Input.mouse.x, my=Input.mouse.y;
@@ -682,6 +740,19 @@ function drawHUD() {
     ctx.fillText(tag, CFG.VIEW_W/2, 56);
   }
 
+  // Mission objective (top-centre, under the wanted stars)
+  if (Missions.objective && !Missions.card) {
+    const txt = '◆ ' + Missions.objective;
+    ctx.font='bold 14px Georgia'; ctx.textAlign='center';
+    const w = ctx.measureText(txt).width + 28;
+    ctx.fillStyle='rgba(20,14,6,0.62)';
+    ctx.fillRect(CFG.VIEW_W/2-w/2, 66, w, 24);
+    ctx.strokeStyle='rgba(160,120,60,0.55)'; ctx.lineWidth=1.5;
+    ctx.strokeRect(CFG.VIEW_W/2-w/2, 66, w, 24);
+    ctx.fillStyle='#e8c45a';
+    ctx.fillText(txt, CFG.VIEW_W/2, 83);
+  }
+
   // Interaction prompt
   if (Game.interactPrompt) {
     let txt='';
@@ -757,6 +828,14 @@ function drawMinimap() {
   // Pickups
   ctx.fillStyle='#e8d56a';
   for (const pk of Game.pickups) ctx.fillRect(MX+pk.x*sx-1, MY+pk.y*sy-1, 2, 2);
+  // Mission objective — pulsing gold diamond
+  if (Missions.marker) {
+    const mx=MX+Missions.marker.x*sx, my=MY+Missions.marker.y*sy;
+    const r = 3.5 + Math.sin(Game.time*5)*1.2;
+    ctx.fillStyle='rgba(255,214,90,0.95)';
+    ctx.beginPath(); ctx.moveTo(mx,my-r); ctx.lineTo(mx+r,my); ctx.lineTo(mx,my+r); ctx.lineTo(mx-r,my); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(60,40,10,0.9)'; ctx.lineWidth=1; ctx.stroke();
+  }
   // Player
   ctx.fillStyle='#fff';
   const px=MX+Game.player.x*sx, py=MY+Game.player.y*sy;

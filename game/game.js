@@ -36,6 +36,7 @@ const Game = {
     this.dynamites = []; this.explosions = [];
     this.kills = 0; this.score = 0; this.time = 0;
     Wanted.clear();
+    Missions.reset();
     Camera.x = clamp(this.player.x - CFG.VIEW_W/2, 0, CFG.WORLD_W-CFG.VIEW_W);
     Camera.y = clamp(this.player.y - CFG.VIEW_H/2, 0, CFG.WORLD_H-CFG.VIEW_H);
 
@@ -146,6 +147,7 @@ const Game = {
         this.pickups.push(new Pickup(lm.x+rand(-20,20), lm.y+40, 'money'));
         this.pickups.push(new Pickup(lm.x+rand(-20,20), lm.y+40, 'dynamite'));
         this.flashMsg('You blast the mine open! Old tunnels yawn into the dark...');
+        Missions.onMineOpened();
       }
     }
     // Loud crime if it goes off in town.
@@ -168,6 +170,7 @@ const Game = {
     this.score += e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
     this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
     if (e.kind==='lawman') Wanted.onLawmanKilled();
+    Missions.onEnemyKilled(e);
     // Loot drops
     if (Math.random()<0.78) this.pickups.push(new Pickup(e.x+rand(-10,10), e.y+rand(-10,10), Math.random()<0.5?'ammo':'money'));
     if (e.kind==='enforcer') this.pickups.push(new Pickup(e.x+rand(-14,14), e.y+rand(-14,14), 'money'));
@@ -191,6 +194,13 @@ const Game = {
   checkInteraction() {
     this.interactPrompt = null;
     const p = this.player;
+    // Mission interactions take priority (Darryl talk, wagon search, mine descent…)
+    const mi = Missions.getInteract(p);
+    if (mi) {
+      this.interactPrompt = { label: mi.label };
+      if (Input.hit('e')) mi.act();
+      return;
+    }
     for (const b of STRUCTURES) {
       if (b.action==='none') continue;
       if (dist(p.x,p.y,b.door.x,b.door.y) < 55) {
@@ -278,6 +288,7 @@ const Game = {
       if (b.action==='chapel') {
         this.enemies.push(new Enemy(b.door.x, b.door.y-34, 'bandit'));   // something was hiding down there
         this.flashMsg(`Lockpicked the chapel cellar! +$${money}${extra} — and something lunges from the dark!`);
+        Missions.onChapelOpened();
       } else {
         this.flashMsg(`Picked the lock: +$${money}, +4 ammo${extra}.`);
       }
@@ -321,6 +332,7 @@ const Game = {
     Audio.click();
     const b = Wanted.level>0 ? `Your bounty: $${Wanted.level*40} (${Wanted.level}★).  ` : 'No bounty on you — yet.  ';
     this.flashMsg(b + RUMORS[randInt(0,RUMORS.length-1)]);
+    Missions.onBoardRead();
   },
 
   // --- Main update ---------------------------------------------------------
@@ -397,6 +409,7 @@ const Game = {
     for (const f of this.floats) f.update(dt);
 
     Wanted.update(dt, p);
+    Missions.update(dt, p);
     // When the manhunt fully ends, the law gives up and clears out.
     if (Wanted.level>0) this._hadLaw = true;
     else if (this._hadLaw) {

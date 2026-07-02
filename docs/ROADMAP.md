@@ -18,8 +18,10 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 2 — Hicksville Overworld: ✅ DONE** (town props/alleys, wanted board, dig caches, desert landmarks)
 **Milestone 3 — Tools Pass: ✅ DONE** (lasso, lockpick, horse whistle, Dead Eye)
 **M3.5 — The Manhunt: ✅ DONE** (GTA search-zone wanted cooldown; camp safehouse; bribe tokens)
+**Milestone 4 — Mission Slice: ✅ DONE** (Missions I–III via Darryl, title cards, objective HUD + markers)
 
-**Next up → Milestone 4: Mission Slice** (Missions 1–3 playable + mission-state tracking + title cards)
+**Next up → Milestone 5: Boss Slice** (Buckshot Benny & the Rattlebone Gang, phased fight)
+*(Parallel track: Chris walk/aim/shoot sheets — idle is in; USE_SPRITES flips on when walk lands.)*
 
 ---
 
@@ -100,10 +102,18 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
       horse to you), **Dead Eye** (hold Right-Mouse — world slows, your shots fly full
       speed +1.7× dmg, meter fills from kills). Dynamite was done in M1. Tuning in `config.js`.
       NOTE: tools are granted from the start for now; gating to unlock-order is deferred to M4/M5.
-- [ ] **M4 — Mission Slice.** Missions 1–3 playable + mission-state tracking + title cards.
-      - M1: *Welcome to Hicksville* — town intro, wanted, freedom.
-      - M2: *The Bone-Dry Job* — wilderness, lasso, demon-rumor clue.
-      - M3: *Trouble Under the Chapel* — lockpick + dynamite + cave + Dead Eye setup.
+- [x] **M4 — Mission Slice.** ✅ `Missions` state machine in `systems.js`; Darryl offers
+      the three missions in order (talk with E at camp). Cinematic **title cards**
+      (letterboxed, fade in/out), **objective line** top-centre, **gold marker** on the
+      minimap + bouncing chevron in-world (kill stages track the nearest target). Missions
+      never gate the sandbox; pre-completed steps (chapel looted / mine blasted) auto-skip.
+      Rewards tuned in `config.js` (`M1_REWARD` etc.).
+      - M1: *Welcome to Hicksville* — saloon "staged argument" shootout → wanted-board
+        clue (missing travelers, fake bounties) → report to Darryl.
+      - M2: *The Bone-Dry Job* — riverbed wagon ambush (lasso hint) → claw-mark demon
+        clue → CHOICE: return supplies to Darryl ($30) or fence at the Lucky Tooth ($60).
+      - M3: *Trouble Under the Chapel* — lockpick cellar → dynamite the collapsed mine →
+        ritual-chamber clue + Dead Eye refill ("setup") → Darryl's ominous close (M5 hook).
 - [ ] **M5 — Boss Slice.** Buckshot Benny & the Rattlebone Gang, phased fight.
 - [~] **Art remodel — Chris sprite pipeline (scaffolded, flag-OFF).** ✅ `game/assets.js`
       (loader), `game/chris-manifest.js` (anim defs as JS, not fetched JSON), `game/sprites.js`
