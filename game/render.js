@@ -282,6 +282,14 @@ function drawLandmarkGround(ox, oy) {
       if (!onScreen(lm.x,lm.y,220)) continue;
       ctx.save(); ctx.fillStyle='rgba(40,30,18,0.25)';
       ctx.beginPath(); ctx.arc(lm.x-ox,lm.y-oy,120,0,TAU); ctx.fill(); ctx.restore();
+    } else if (lm.type==='hideout') {
+      // scorched, trampled bowl inside the spire ring
+      if (!onScreen(lm.x,lm.y,320)) continue;
+      ctx.save(); ctx.fillStyle='rgba(50,36,24,0.30)';
+      ctx.beginPath(); ctx.arc(lm.x-ox,lm.y-oy,230,0,TAU); ctx.fill();
+      ctx.fillStyle='rgba(30,22,14,0.25)';
+      ctx.beginPath(); ctx.ellipse(lm.x-ox+150,lm.y-oy,60,40,0,0,TAU); ctx.fill();  // throne shadow
+      ctx.restore();
     } else if (lm.type==='ghosttrail') {
       // Only visible at night — alpha tracks the lighting cycle.
       const night = clamp(1-(Math.sin(Game.dayPhase*TAU)*0.5+0.5), 0, 1);
@@ -358,6 +366,27 @@ function drawLandmarkStructures(ox, oy) {
       // skull keystone
       ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(tx,ty-104,12,0,TAU); ctx.fill();
       ctx.fillStyle='#3a3020'; ctx.beginPath(); ctx.arc(tx-4,ty-106,2.5,0,TAU); ctx.arc(tx+4,ty-106,2.5,0,TAU); ctx.fill();
+      ctx.restore();
+    } else if (lm.type==='hideout') {
+      // Benny's bone throne — a longhorn-skull seat on a rib-cage dais.
+      const bx=tx+150, by=ty;
+      ctx.save();
+      // rib arcs behind the seat
+      ctx.strokeStyle='#cfc4a2'; ctx.lineWidth=5; ctx.lineCap='round';
+      for (let i=-2;i<=2;i++) {
+        ctx.beginPath(); ctx.moveTo(bx+18, by+i*16);
+        ctx.quadraticCurveTo(bx+46, by+i*16 - 8, bx+58, by+i*16 + 4); ctx.stroke();
+      }
+      // seat block
+      ctx.fillStyle='#5a4630'; ctx.fillRect(bx-18,by-20,36,44);
+      ctx.strokeStyle='#2e2314'; ctx.lineWidth=2; ctx.strokeRect(bx-18,by-20,36,44);
+      // longhorn skull crowning it
+      ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(bx,by-32,13,0,TAU); ctx.fill();
+      ctx.strokeStyle='#e8dec0'; ctx.lineWidth=6;
+      ctx.beginPath(); ctx.moveTo(bx-11,by-36); ctx.quadraticCurveTo(bx-34,by-44,bx-42,by-58); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx+11,by-36); ctx.quadraticCurveTo(bx+34,by-44,bx+42,by-58); ctx.stroke();
+      ctx.fillStyle='#3a3020';
+      ctx.beginPath(); ctx.arc(bx-5,by-34,2.6,0,TAU); ctx.arc(bx+5,by-34,2.6,0,TAU); ctx.fill();
       ctx.restore();
     } else if (lm.type==='mine') {
       ctx.save();
@@ -753,6 +782,26 @@ function drawHUD() {
     ctx.fillText(txt, CFG.VIEW_W/2, 83);
   }
 
+  // Boss HP bar (bottom-centre) — phase notches at 2/3 and 1/3
+  const boss = Game.enemies.find(e=>e.kind==='boss' && !e.dead);
+  if (boss) {
+    const bw=420, bh=14, bx=CFG.VIEW_W/2-bw/2, by=CFG.VIEW_H-44;
+    ctx.fillStyle='rgba(20,10,6,0.8)'; ctx.fillRect(bx-6,by-24,bw+12,bh+32);
+    ctx.strokeStyle='rgba(160,120,60,0.8)'; ctx.lineWidth=1.5; ctx.strokeRect(bx-6,by-24,bw+12,bh+32);
+    ctx.fillStyle='#e8c8a0'; ctx.font='bold 12px Georgia'; ctx.textAlign='center';
+    ctx.fillText('☠  BUCKSHOT BENNY' + (boss.phase===3?'  —  DEMON-TOUCHED':''), CFG.VIEW_W/2, by-9);
+    ctx.fillStyle='#2a1414'; ctx.fillRect(bx,by,bw,bh);
+    const f = clamp(boss.hp/boss.maxhp,0,1);
+    const bg = ctx.createLinearGradient(bx,0,bx+bw,0);
+    bg.addColorStop(0,'#7a1a1a'); bg.addColorStop(1,'#c85a2a');
+    ctx.fillStyle = boss.phase===3 ? '#a01818' : bg;
+    ctx.fillRect(bx,by,bw*f,bh);
+    // phase notches
+    ctx.fillStyle='rgba(240,220,180,0.7)';
+    ctx.fillRect(bx+bw*(2/3)-1, by, 2, bh); ctx.fillRect(bx+bw*(1/3)-1, by, 2, bh);
+    ctx.strokeStyle='#1a0a0a'; ctx.strokeRect(bx,by,bw,bh);
+  }
+
   // Interaction prompt
   if (Game.interactPrompt) {
     let txt='';
@@ -820,8 +869,13 @@ function drawMinimap() {
     ctx.strokeStyle = Wanted.searching ? `rgba(232,196,90,${(0.5+0.4*Math.sin(Game.time*5)).toFixed(2)})` : 'rgba(232,90,58,0.85)';
     ctx.beginPath(); ctx.arc(mzx,mzy,mzr,0,TAU); ctx.stroke(); ctx.setLineDash([]);
   }
-  // Enemies
+  // Enemies (the boss shows as a fat bone-white blip)
   for (const e of Game.enemies) {
+    if (e.kind==='boss') {
+      ctx.fillStyle='#f0e8d0';
+      ctx.fillRect(MX+e.x*sx-2.5, MY+e.y*sy-2.5, 5, 5);
+      continue;
+    }
     ctx.fillStyle = e.kind==='lawman' ? '#6a9ae8' : '#e85a3a';
     ctx.fillRect(MX+e.x*sx-1.5, MY+e.y*sy-1.5, 3, 3);
   }

@@ -665,6 +665,198 @@ class Enemy {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   M5 — BUCKSHOT BENNY (boss). Reuses the Enemy AI/collision/knockback core;
+   overrides the gun (shotgun fan) and layers phased behavior on top:
+     Phase 1 (>2/3 hp): shotgun blasts, keeps mid distance.
+     Phase 2 (>1/3 hp): + lobs dynamite when you kite him, + reinforcements.
+     Phase 3 (<1/3 hp): demon-touched — telegraphed shoulder charges, faster.
+   --------------------------------------------------------------------------- */
+class Boss extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'bandit');
+    this.kind = 'boss';
+    const D = DIFFICULTY[Game.difficulty];
+    this.hp = CFG.BOSS_HP * D.hp; this.maxhp = this.hp;
+    this.speed = CFG.BOSS_SPEED; this.r = CFG.BOSS_RADIUS;
+    this.dmg = CFG.BOSS_PELLET_DMG * D.dmg;
+    this.phase = 1;
+    this.dynTimer = CFG.BOSS_DYN_COOLDOWN * 0.6;
+    this.chargeTimer = CFG.BOSS_CHARGE_COOLDOWN * 0.5;
+    this.chargeWind = 0;      // >0 = stomping, about to charge (readable tell)
+    this.charging = 0;        // >0 = mid-charge
+    this.chargeAng = 0;
+    this.chargeHit = false;   // one contact hit per charge
+  }
+  // Too big to juggle, too stubborn to stay roped.
+  applyKnockback(ang, force) { super.applyKnockback(ang, force*0.35); }
+
+  currentPhase() {
+    const f = this.hp / this.maxhp;
+    return f > 2/3 ? 1 : f > 1/3 ? 2 : 3;
+  }
+
+  shoot(player) {
+    // Shotgun fan replaces the single revolver shot.
+    this.recoil = 1;
+    const mx = this.x+Math.cos(this.aim)*26, my = this.y+Math.sin(this.aim)*26;
+    const n = CFG.BOSS_PELLETS + (this.phase===3 ? 2 : 0);
+    for (let i=0;i<n;i++) {
+      const a = this.aim + (i/(n-1) - 0.5) * CFG.BOSS_SPREAD_ARC;
+      Game.bullets.push(new Bullet(mx,my,a,CFG.ENEMY_BULLET_SPEED*0.92,this.dmg,false));
+    }
+    Game.spawnMuzzle(mx,my,this.aim);
+    Camera.addShake(3);
+    Audio.enemyShot();
+    this._blastCd = true;     // stretch the follow-up cooldown (set after shoot in Enemy.update)
+  }
+
+  update(dt, player) {
+    // Lasso barely holds him.
+    if (this.stun > 0.45) this.stun = 0.45;
+
+    // Phase transitions — roar, shake, call Rattlebone reinforcements.
+    const ph = this.currentPhase();
+    if (ph !== this.phase) {
+      this.phase = ph;
+      Camera.addShake(10);
+      Audio.explosion();
+      for (let i=0;i<CFG.BOSS_SUMMON_N;i++) {
+        const e = new Enemy(clamp(this.x+rand(-120,120),100,CFG.WORLD_W-100),
+                            clamp(this.y+rand(-120,120),100,CFG.WORLD_H-100), 'bandit');
+        e.missionTag = this.missionTag;
+        Game.enemies.push(e);
+      }
+      Game.flashMsg(ph===2
+        ? 'Benny: "RATTLEBONES! Earn your damn keep!"'
+        : 'Benny\'s eyes go black as tar. That ain\'t just Benny anymore.');
+    }
+
+    // Mid-charge: barrel along, contact hit, ignore normal AI.
+    if (this.charging > 0) {
+      this.charging -= dt;
+      this.vx = Math.cos(this.chargeAng)*CFG.BOSS_CHARGE_SPEED;
+      this.vy = Math.sin(this.chargeAng)*CFG.BOSS_CHARGE_SPEED;
+      this.x += this.vx*dt; this.y += this.vy*dt;
+      this.walkCycle += dt*16;
+      if (Math.random()<0.7) Game.particles.push(new Particle(this.x,this.y+8,rand(-30,30),rand(-50,-10),0.35,'rgba(150,120,80,0.5)',5));
+      if (!this.chargeHit && !player.dead && dist(this.x,this.y,player.x,player.y) < this.r+player.r+4) {
+        this.chargeHit = true;
+        player.takeDamage(CFG.BOSS_CHARGE_DMG * DIFFICULTY[Game.difficulty].dmg);
+        player.vx += Math.cos(this.chargeAng)*520; player.vy += Math.sin(this.chargeAng)*520;
+        Camera.addShake(8);
+      }
+      this.resolveCollisions();
+      this.x = clamp(this.x, this.r, CFG.WORLD_W-this.r);
+      this.y = clamp(this.y, this.r, CFG.WORLD_H-this.r);
+      if (this.recoil>0) this.recoil=Math.max(0,this.recoil-dt*6);
+      if (this.hurtFlash>0) this.hurtFlash-=dt;
+      return;
+    }
+    // Charge windup: plant feet and stomp — the player's cue to sidestep.
+    if (this.chargeWind > 0) {
+      this.chargeWind -= dt;
+      this.aim = angTo(this.x,this.y,player.x,player.y);   // tracks until launch
+      this.vx *= Math.exp(-8*dt); this.vy *= Math.exp(-8*dt);
+      if (Math.floor(this.chargeWind*10)%2===0) Camera.addShake(1.5);
+      if (this.chargeWind <= 0) {
+        this.charging = CFG.BOSS_CHARGE_TIME;
+        this.chargeAng = this.aim;
+        this.chargeHit = false;
+        Audio.lasso();
+      }
+      if (this.hurtFlash>0) this.hurtFlash-=dt;
+      return;
+    }
+
+    super.update(dt, player);
+    if (this._blastCd) { this.fireTimer *= CFG.BOSS_FIRE_MULT; this._blastCd = false; }
+
+    const engaged = this.state==='attack' || this.state==='chase';
+    const dP = dist(this.x,this.y,player.x,player.y);
+
+    // Phase 2+: dynamite lob when the player keeps their distance.
+    if (this.phase >= 2 && engaged && !player.dead) {
+      this.dynTimer -= dt;
+      if (this.dynTimer <= 0 && dP > CFG.BOSS_DYN_MIN_DIST) {
+        this.dynTimer = CFG.BOSS_DYN_COOLDOWN;
+        const a = angTo(this.x,this.y,player.x,player.y);
+        Game.dynamites.push(new Dynamite(this.x,this.y,a,clamp(dP*1.55,240,CFG.DYN_THROW_SPEED+80)));
+        Game.flashMsg('Benny hurls a hissing stick of dynamite!');
+      }
+    }
+    // Phase 3: shoulder charge on cooldown.
+    if (this.phase === 3 && engaged && !player.dead && this.stun<=0) {
+      this.chargeTimer -= dt;
+      if (this.chargeTimer <= 0 && dP > 90 && dP < 520) {
+        this.chargeTimer = CFG.BOSS_CHARGE_COOLDOWN;
+        this.chargeWind = CFG.BOSS_CHARGE_WINDUP;
+      }
+    }
+  }
+
+  render(ctx, ox, oy) {
+    const tx=this.x-ox, ty=this.y-oy;
+    // Big shadow
+    ctx.fillStyle='rgba(0,0,0,0.38)';
+    ctx.beginPath(); ctx.ellipse(tx,ty+14,19,8,0,0,TAU); ctx.fill();
+    // Phase-3 demon aura
+    if (this.phase===3) {
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha = 0.28 + 0.14*Math.sin(Game.time*7);
+      const g=ctx.createRadialGradient(tx,ty,4,tx,ty,42);
+      g.addColorStop(0,'#a02a2a'); g.addColorStop(1,'rgba(120,20,20,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(tx,ty,42,0,TAU); ctx.fill();
+      ctx.restore();
+    }
+    // Charge tell — stomping dust + a warning line along the charge path
+    if (this.chargeWind>0) {
+      const c = 1 - this.chargeWind/CFG.BOSS_CHARGE_WINDUP;
+      ctx.save();
+      ctx.globalAlpha = 0.3 + c*0.5;
+      ctx.strokeStyle='#ff7a3a'; ctx.lineWidth=3; ctx.setLineDash([10,7]);
+      ctx.beginPath(); ctx.moveTo(tx,ty);
+      ctx.lineTo(tx+Math.cos(this.aim)*(120+c*260), ty+Math.sin(this.aim)*(120+c*260)); ctx.stroke();
+      ctx.setLineDash([]); ctx.restore();
+    }
+    // The man himself — a bandit drawn 1.45× with a bone-white duster.
+    ctx.save();
+    ctx.translate(tx,ty); ctx.scale(1.45,1.45); ctx.translate(-tx,-ty);
+    drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0,
+      this.phase===3 ? {coat:'#6a2020', hat:'#141010', skin:'#c8b8a8'}
+                     : {coat:'#5a4a3a', hat:'#1a1410', skin:'#c0a080'});
+    ctx.restore();
+    // Bone bandolier + skull pin (reads "Rattlebone king" at a glance)
+    ctx.save();
+    ctx.strokeStyle='#ddd2b0'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(tx-12,ty-8); ctx.lineTo(tx+12,ty+10); ctx.stroke();
+    ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(tx+9,ty-16,4,0,TAU); ctx.fill();
+    ctx.restore();
+    // Windup aim tell (same language as regular enemies, thicker)
+    if (this.windup>0) {
+      const charge = 1 - this.windup/CFG.ENEMY_WINDUP;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + charge*0.45;
+      ctx.strokeStyle='#ff5a3a'; ctx.lineWidth=2.5; ctx.setLineDash([6,5]);
+      const len = 40 + charge*CFG.ENEMY_SHOOT_RANGE*0.5;
+      ctx.beginPath(); ctx.moveTo(tx,ty);
+      ctx.lineTo(tx+Math.cos(this.aim)*len, ty+Math.sin(this.aim)*len); ctx.stroke();
+      ctx.setLineDash([]); ctx.restore();
+    }
+    // Roped/stunned stars (briefly — he shrugs the rope fast)
+    if (this.stun>0) {
+      ctx.save(); ctx.fillStyle='#e8d56a'; ctx.font='12px Georgia'; ctx.textAlign='center';
+      for (let i=0;i<3;i++){ const a=Game.time*6 + i*TAU/3; ctx.fillText('★', tx+Math.cos(a)*11, ty-38+Math.sin(a)*4); }
+      ctx.restore();
+    }
+    // Name tag (big HP bar lives in the HUD)
+    ctx.fillStyle='rgba(20,10,6,0.75)'; ctx.font='bold 11px Georgia'; ctx.textAlign='center';
+    const w=ctx.measureText('BUCKSHOT BENNY').width+10;
+    ctx.fillRect(tx-w/2, ty-52, w, 15);
+    ctx.fillStyle='#e8c8a0'; ctx.fillText('BUCKSHOT BENNY', tx, ty-41);
+  }
+}
+
 class Townsfolk {
   constructor(x,y) {
     this.x=x; this.y=y; this.r=12; this.dead=false;

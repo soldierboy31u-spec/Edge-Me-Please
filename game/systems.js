@@ -93,11 +93,12 @@ const Missions = {
   marker: null,       // {x,y} world-space objective marker (minimap + chevron)
   m2Supplies: false,  // carrying the recovered supplies (Bone-Dry Job)
 
-  order: ['m1','m2','m3'],
+  order: ['m1','m2','m3','m4'],
   defs: {
     m1: { num:'I',   title:'WELCOME TO HICKSVILLE' },
     m2: { num:'II',  title:'THE BONE-DRY JOB' },
     m3: { num:'III', title:'TROUBLE UNDER THE CHAPEL' },
+    m4: { num:'IV',  title:'THE RATTLEBONE GANG' },
   },
   // Where the Bone-Dry ambush happens (the dry riverbed landmark).
   m2Site: { x: TOWN_CX-200, y: TOWN_CY-1250 },
@@ -145,6 +146,10 @@ const Missions = {
       } else {
         this.setObjective('Check under the Abandoned Chapel (pick the cellar lock)', chapel.door.x, chapel.door.y);
       }
+    } else if (id==='m4') {
+      Game.flashMsg('Darryl: "Fake bounties, ambushes, that chamber — one name keeps rattlin\' loose. Buckshot Benny. End him."');
+      const hd = LANDMARK_POS.hideout;
+      this.setObjective('Ride east past the Bone Arch to the Rattlebone hideout', hd.x, hd.y);
     }
   },
 
@@ -171,6 +176,9 @@ const Missions = {
       if (this.active==='m3' && this.stage===3)
         return { label:'Tell Darryl what you saw', act:()=> this.complete('m3',
           'Darryl goes quiet a long moment. "Ritual chamber. Right. Chris — some holes are dug from the inside."', CFG.M3_REWARD) };
+      if (this.active==='m4' && this.stage===3)
+        return { label:'Tell Darryl it\'s done', act:()=> this.complete('m4',
+          'Darryl: "Black as tar, you say. Then Benny weren\'t the disease, Chris. He was a symptom."', CFG.M4_REWARD) };
       if (!this.active) {
         const nid = this.next();
         if (nid) return { label:'Talk to Darryl', act:()=> this.start(nid) };
@@ -239,6 +247,24 @@ const Missions = {
       this.stage = 2;
       Game.flashMsg('Last one drops. The wrecked wagon sits dead ahead.');
       this.setObjective('Search the wrecked wagon', this.m2Site.x, this.m2Site.y);
+    } else if (this.active==='m4' && this.stage===1) {
+      // Guards down → Benny steps out of the bone throne.
+      if (this.aliveTagged('m4') > 0) {
+        this.setObjective('Wipe out Benny\'s guards ('+this.aliveTagged('m4')+' left)', e.x, e.y); return;
+      }
+      this.stage = 2;
+      const hd = LANDMARK_POS.hideout;
+      const boss = new Boss(hd.x+150, hd.y);
+      boss.missionTag = 'm4';
+      Game.enemies.push(boss);
+      this.showCard('THE RATTLEBONE KING', 'BUCKSHOT BENNY', '"Ain\'t no redemption for you, boy."');
+      Game.flashMsg('Benny racks his shotgun: "You shot up my boys. Rude."');
+      this.setObjective('Kill Buckshot Benny', hd.x+150, hd.y);
+      Camera.addShake(8);
+    } else if (this.active==='m4' && this.stage===2 && e.kind==='boss') {
+      this.stage = 3;
+      Game.flashMsg('Benny drops — and what leaks out of him is black as tar, and it ain\'t blood.');
+      this.setObjective('Tell Darryl it\'s done', DARRYL.x, DARRYL.y);
     }
   },
   onBoardRead() {
@@ -279,10 +305,20 @@ const Missions = {
         Game.flashMsg('The wagon\'s been ransacked — and its ambushers are still here!');
         this.setObjective('Clear the ambushers (4 left) — lasso [F] stuns \'em', this.m2Site.x, this.m2Site.y);
       }
+    } else if (this.active==='m4' && this.stage===0) {
+      const hd = LANDMARK_POS.hideout;
+      if (dist(p.x,p.y,hd.x,hd.y) < CFG.MISSION_ARRIVE_DIST + 60) {
+        this.stage = 1;
+        this.spawnTagged('m4', hd.x-60, hd.y-60, 3, 'bandit');
+        this.spawnTagged('m4', hd.x+40, hd.y+70, 1, 'enforcer');
+        Game.flashMsg('Bone totems and gun smoke — the Rattlebones spill out to meet you!');
+        this.setObjective('Wipe out Benny\'s guards (4 left)', hd.x, hd.y);
+        Camera.addShake(5);
+      }
     }
 
-    // Kill-stage markers track the nearest surviving target.
-    if ((this.active==='m1'||this.active==='m2') && this.stage===1) {
+    // Kill-stage markers track the nearest surviving target (or Benny himself).
+    if ((this.active==='m1'||this.active==='m2'||this.active==='m4') && this.stage===1) {
       let best=null, bd=Infinity;
       for (const e of Game.enemies) {
         if (e.missionTag!==this.active || e.dead) continue;
@@ -290,6 +326,10 @@ const Missions = {
         if (d<bd) { bd=d; best=e; }
       }
       if (best) this.marker = { x: best.x, y: best.y };
+    }
+    if (this.active==='m4' && this.stage===2) {
+      const boss = Game.enemies.find(e=>e.kind==='boss' && !e.dead);
+      if (boss) this.marker = { x: boss.x, y: boss.y };
     }
   },
 };

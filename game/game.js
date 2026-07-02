@@ -167,10 +167,18 @@ const Game = {
 
   onEnemyKilled(e) {
     this.kills++;
-    this.score += e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
+    this.score += e.kind==='boss'?1000 : e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
     this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
     if (e.kind==='lawman') Wanted.onLawmanKilled();
     Missions.onEnemyKilled(e);
+    // A boss goes out with a bang — money burst + dynamite, and a proper blast.
+    if (e.kind==='boss') {
+      Camera.addShake(12);
+      for (let i=0;i<4;i++) this.pickups.push(new Pickup(e.x+rand(-40,40), e.y+rand(-40,40), 'money'));
+      for (let i=0;i<2;i++) this.pickups.push(new Pickup(e.x+rand(-30,30), e.y+rand(-30,30), 'dynamite'));
+      this.floats.push(new FloatText(e.x, e.y-26, '+1000', '#ffde7a'));
+      return;
+    }
     // Loot drops
     if (Math.random()<0.78) this.pickups.push(new Pickup(e.x+rand(-10,10), e.y+rand(-10,10), Math.random()<0.5?'ammo':'money'));
     if (e.kind==='enforcer') this.pickups.push(new Pickup(e.x+rand(-14,14), e.y+rand(-14,14), 'money'));

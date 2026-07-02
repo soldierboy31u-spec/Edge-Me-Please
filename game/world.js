@@ -109,6 +109,20 @@ function generateProps() {
   add('spire', TOWN_CX+900, TOWN_CY-1250, 30);
   add('spire', TOWN_CX+960, TOWN_CY-1180, 22);
   add('spire', TOWN_CX-1250, TOWN_CY-300, 28);
+
+  // --- M5: Rattlebone hideout — a spire-walled bowl with crate/barrel cover ---
+  const hd = LANDMARK_POS.hideout;
+  // ring of rock spires forming the arena walls (gap on the west approach)
+  for (let i=0;i<9;i++) {
+    const a = -Math.PI*0.72 + (i/8)*Math.PI*1.44;   // opening faces west, toward the arch
+    add('spire', hd.x+Math.cos(a)*260, hd.y+Math.sin(a)*260, rand(22,32));
+  }
+  // scattered cover inside the bowl
+  add('crate', hd.x-90, hd.y-40, 15); add('crate', hd.x-70, hd.y-70, 15);
+  add('barrel', hd.x+80, hd.y+60, 13); add('barrel', hd.x+110, hd.y+40, 13);
+  add('crate', hd.x+30, hd.y-110, 15); add('barrel', hd.x-60, hd.y+100, 13);
+  // bone-leg totems flanking the "throne" at the back of the bowl
+  add('boneleg', hd.x+180, hd.y-60, 14); add('boneleg', hd.x+180, hd.y+60, 14);
 }
 
 // Fixed positions shared by props + landmarks so the two stay aligned.
@@ -117,6 +131,7 @@ const LANDMARK_POS = {
   wagons: { x: TOWN_CX-1150, y: TOWN_CY+900  },
   shrine: { x: TOWN_CX+1350, y: TOWN_CY+1250 },
   mine:   { x: TOWN_CX-1250, y: TOWN_CY-1050 },
+  hideout:{ x: TOWN_CX+2300, y: TOWN_CY-750  },   // Rattlebone hideout — past the Bone Arch (M5)
 };
 
 // Large atmospheric features. `action` (if set) makes them [E]-interactable.
@@ -127,6 +142,8 @@ const LANDMARKS = [
     action:'shrine', label:'Lay a coin at the bone shrine' },
   { type:'mine',     x:LANDMARK_POS.mine.x,   y:LANDMARK_POS.mine.y,   name:'Collapsed Mine',
     action:'mine',   label:'Mine entrance — caved in (needs dynamite)' },
+  // Rattlebone hideout — Buckshot Benny's spire-walled camp (M5 boss arena).
+  { type:'hideout',  x:LANDMARK_POS.hideout.x, y:LANDMARK_POS.hideout.y, name:'Rattlebone Hideout' },
   // Dry riverbed: a winding lighter channel (drawn as a ground decal).
   { type:'riverbed', x:TOWN_CX-200, y:TOWN_CY-1250, name:'Dry Riverbed' },
   // Ghost-lantern trail: floating lanterns, only visible at night. Leads to a secret.

@@ -19,8 +19,9 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 3 — Tools Pass: ✅ DONE** (lasso, lockpick, horse whistle, Dead Eye)
 **M3.5 — The Manhunt: ✅ DONE** (GTA search-zone wanted cooldown; camp safehouse; bribe tokens)
 **Milestone 4 — Mission Slice: ✅ DONE** (Missions I–III via Darryl, title cards, objective HUD + markers)
+**Milestone 5 — Boss Slice: ✅ DONE** (Mission IV: Buckshot Benny at the Rattlebone hideout, 3-phase fight)
 
-**Next up → Milestone 5: Boss Slice** (Buckshot Benny & the Rattlebone Gang, phased fight)
+**Next up → Milestone 6: Art Pass** (ink outlines, film grain/vignette, impact effects, HUD frame)
 *(Parallel track: idle + walk + shoot sheets are IN and `USE_SPRITES` is ON — aim/dash/hurt/mounted
 sheets still to come; they fall back to idle/walk art until then.)*
 
@@ -115,7 +116,15 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
         clue → CHOICE: return supplies to Darryl ($30) or fence at the Lucky Tooth ($60).
       - M3: *Trouble Under the Chapel* — lockpick cellar → dynamite the collapsed mine →
         ritual-chamber clue + Dead Eye refill ("setup") → Darryl's ominous close (M5 hook).
-- [ ] **M5 — Boss Slice.** Buckshot Benny & the Rattlebone Gang, phased fight.
+- [x] **M5 — Boss Slice.** ✅ Mission IV *The Rattlebone Gang* (Darryl, after M3): ride east
+      past the Bone Arch to the **Rattlebone Hideout** (new landmark — spire-walled bowl,
+      crate cover, bone throne) → wipe out 4 guards → **BUCKSHOT BENNY** (intro title card,
+      HUD boss bar with phase notches, big minimap blip). `class Boss extends Enemy`
+      (entities.js): shotgun fan (5–7 pellets), 3 phases by HP — P2 summons Rattlebones +
+      lobs dynamite when kited, P3 demon-touched (red aura, telegraphed shoulder charge,
+      contact dmg + knockback). Lasso only briefly holds him; knockback resistance 0.35×.
+      Death: black-ichor story beat, +1000 score, money/dynamite burst → report to Darryl
+      ($150, M6 demon-arc hook). Tuning in `config.js` (`BOSS_*`, `M4_REWARD`).
 - [~] **Art remodel — Chris sprite pipeline (LIVE, flag-ON).** ✅ `game/assets.js`
       (loader), `game/chris-manifest.js` (anim defs as JS, not fetched JSON), `game/sprites.js`
       (8-dir resolver + `SpriteAnimator` + `ChrisSprites` + anchored renderer + auto placeholder

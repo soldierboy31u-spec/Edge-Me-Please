@@ -105,6 +105,24 @@ const CFG = {
   M3_REWARD: 75,             // Trouble Under the Chapel
   MISSION_ARRIVE_DIST: 300,  // how close "get there" objectives trigger
   TITLE_CARD_TIME: 3.6,      // s a mission title card stays up
+
+  // --- M5 Boss Slice: Buckshot Benny & the Rattlebone Gang ---
+  BOSS_HP: 850,              // scaled by difficulty like all enemies
+  BOSS_SPEED: 118,
+  BOSS_RADIUS: 20,
+  BOSS_PELLETS: 5,           // shotgun blast — pellets per trigger pull
+  BOSS_SPREAD_ARC: 0.46,     // full fan width in radians
+  BOSS_PELLET_DMG: 8,
+  BOSS_FIRE_MULT: 1.7,       // multiplies the base enemy cooldown between blasts
+  BOSS_DYN_COOLDOWN: 6.0,    // phase 2+: lobs dynamite when you keep your distance
+  BOSS_DYN_MIN_DIST: 260,    // ...but never point-blank (he's crazy, not suicidal)
+  BOSS_CHARGE_COOLDOWN: 4.5, // phase 3: bone-rattling shoulder charge
+  BOSS_CHARGE_SPEED: 640,
+  BOSS_CHARGE_TIME: 0.5,     // s the charge lasts
+  BOSS_CHARGE_WINDUP: 0.7,   // s of readable stomp-telegraph before it
+  BOSS_CHARGE_DMG: 24,
+  BOSS_SUMMON_N: 2,          // Rattlebone reinforcements per phase transition
+  M4_REWARD: 150,            // Darryl pays well for a war
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };
