@@ -360,15 +360,26 @@ class Player {
     if (this.recoil > 0.5 || (a.anim === 'shoot' && !a.finished)) state = 'shoot';  // let the one-shot finish
     if (this.mounted) state = 'mounted';
     if (this.hurtFlash > 0) state = 'hurt';
-    // Facing: the shot flash faces where he fires; a dash faces its burst
-    // direction; walking faces the movement INPUT the instant it changes;
-    // standing still faces the mouse.
-    if (state === 'shoot') a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
-    else if (this.dashTimer > 0) a.setDirection(vectorTo8DirName(this.dashDX, this.dashDY));
+    // Facing: movement input OWNS the facing whenever Chris is moving — even
+    // during the shot flash. (Snapping to the mouse per shot while running
+    // made him flip-flop ~3x/sec between run-facing and aim-facing.)
+    // Standing still: face the mouse, with hysteresis so tiny cursor moves
+    // near a 45° sector boundary can't strobe between adjacent rows.
+    if (this.dashTimer > 0) a.setDirection(vectorTo8DirName(this.dashDX, this.dashDY));
     else if (moving) a.setDirection(vectorTo8DirName(this.moveX, this.moveY));
-    else a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
+    else a.setDirection(this._aimDirWithHysteresis(a.dir));
     a.setAnimation(state);
     a.update(dt);
+  }
+
+  // 8-way facing from the mouse aim, but sticky: leave the current sector only
+  // once the aim angle is ~8° past its edge. Kills idle flicker at boundaries.
+  _aimDirWithHysteresis(cur) {
+    const cand = vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim));
+    if (!cur || cand === cur || DIR_ANGLE[cur] === undefined) return cand;
+    let d = Math.abs(this.aim - DIR_ANGLE[cur]);
+    if (d > Math.PI) d = TAU - d;
+    return d > (Math.PI/8 + 0.14) ? cand : cur;   // 22.5° sector edge + 8° grace
   }
 
   throwLasso() {

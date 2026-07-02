@@ -57,20 +57,22 @@
   <div id="vignette"></div>
   <div id="hint">WASD Move &nbsp;•&nbsp; Mouse Aim &nbsp;•&nbsp; Click Fire &nbsp;•&nbsp; RMB Dead Eye &nbsp;•&nbsp; Shift Dash &nbsp;•&nbsp; Q Dynamite &nbsp;•&nbsp; F Lasso &nbsp;•&nbsp; H Whistle &nbsp;•&nbsp; R Reload &nbsp;•&nbsp; E Interact &nbsp;•&nbsp; ESC Pause</div>
 
-  <script src="game/config.js"></script>
-  <script src="game/utils.js"></script>
-  <script src="game/input.js"></script>
-  <script src="game/audio.js"></script>
-  <script src="game/camera.js"></script>
-  <script src="game/world.js"></script>
-  <script src="game/assets.js"></script>
-  <script src="game/chris-manifest.js"></script>
-  <script src="game/sprites.js"></script>
-  <script src="game/entities.js"></script>
-  <script src="game/systems.js"></script>
-  <script src="game/game.js"></script>
-  <script src="game/render.js"></script>
-  <script src="game/main.js"></script>
+  <!-- ?v= is a cache-buster: bump it whenever game/*.js changes so browsers
+       (file:// and localhost alike) can't serve a stale build. -->
+  <script src="game/config.js?v=7"></script>
+  <script src="game/utils.js?v=7"></script>
+  <script src="game/input.js?v=7"></script>
+  <script src="game/audio.js?v=7"></script>
+  <script src="game/camera.js?v=7"></script>
+  <script src="game/world.js?v=7"></script>
+  <script src="game/assets.js?v=7"></script>
+  <script src="game/chris-manifest.js?v=7"></script>
+  <script src="game/sprites.js?v=7"></script>
+  <script src="game/entities.js?v=7"></script>
+  <script src="game/systems.js?v=7"></script>
+  <script src="game/game.js?v=7"></script>
+  <script src="game/render.js?v=7"></script>
+  <script src="game/main.js?v=7"></script>
 
 </body>
 </html>
