@@ -21,7 +21,7 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 4 — Mission Slice: ✅ DONE** (Missions I–III via Darryl, title cards, objective HUD + markers)
 
 **Next up → Milestone 5: Boss Slice** (Buckshot Benny & the Rattlebone Gang, phased fight)
-*(Parallel track: idle + walk sheets are IN and `USE_SPRITES` is ON — aim/shoot/dash/hurt/mounted
+*(Parallel track: idle + walk + shoot sheets are IN and `USE_SPRITES` is ON — aim/dash/hurt/mounted
 sheets still to come; they fall back to idle/walk art until then.)*
 
 ---
@@ -122,11 +122,13 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
       + debug overlay). `Player.render` uses sprites when `USE_SPRITES` on + on-foot, else the
       untouched `drawGunslinger` fallback. Contract: `docs/CHARACTER_SPRITE_SPEC.md`. Art locked:
       three-quarter top-down, 8-direction, full-body (gun snaps to facing; bullets fire at cursor).
-      IN: `chris_idle.png` (4f) + `chris_walk.png` (8f, east family rebuilt as west mirrors,
-      258 halo px cleaned). Contract baseline = feet y=108 (walk-native); idle is legacy y=122 via
-      per-anim `anchor`/`scaleMul` manifest overrides (lossless, no resample). `USE_SPRITES: true`,
-      `SPRITE_DRAW_SCALE: 0.51`. Missing sheets fall back: aim/shoot→idle art, dash→walk,
-      hurt→idle, mounted→procedural rider. STILL TO COME: aim/shoot (then dash/hurt/mounted).
+      IN: `chris_idle.png` (4f), `chris_walk.png` (8f), `chris_shoot.png` (3f) — every package so
+      far shipped wrong-facing east-family frames; `docs/tools/fix_sheet.py` rebuilds those rows as
+      west-family mirrors + cleans halo residue, and `docs/tools/validate_sheet.py` checks a sheet
+      in one command. Contract baseline = feet y=108; idle is legacy y=122 via per-anim
+      `anchor`/`scaleMul` manifest overrides (lossless, no resample). `USE_SPRITES: true`,
+      `SPRITE_DRAW_SCALE: 0.51`. Missing sheets fall back: aim→idle art, dash→walk,
+      hurt→idle, mounted→procedural rider. STILL TO COME: aim (then dash/hurt/mounted).
 - [ ] **M6 — Art Pass.** Sprite placeholders, ink outlines, film grain/vignette,
       cartoon impact effects, title cards, HUD frame.
 
