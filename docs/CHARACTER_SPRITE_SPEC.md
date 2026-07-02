@@ -47,10 +47,13 @@ Later (fallbacks used until they exist): `chris_dash.png`, `chris_hurt.png`, `ch
 ## Alignment (critical — this is what makes it "just work")
 
 - **Feet on a consistent baseline** across every frame and every direction. Chris's
-  feet sit at **y = 122** in the 128px cell (the idle assembler anchors boots there;
-  keep every future sheet on the same baseline).
+  feet sit at **y = 108** in the 128px cell, body ~102px tall (the walk generator
+  produces this; keep every future sheet on the same baseline).
+  *Legacy exception:* the idle sheet plants boots at y=122 / ~116px tall — the
+  manifest carries per-anim `anchor` + `scaleMul` overrides for it. New sheets
+  should target y=108; if idle is ever re-rendered to spec, drop the overrides.
 - **Horizontally centered** at **x = 64**.
-- Anchor point = the feet (x 64, y 122). The engine plants that point on Chris's
+- Anchor point = the feet (x 64, y 108). The engine plants that point on Chris's
   world position; the collision circle (radius 15) stays there regardless of art.
 - Hat and coat **may** extend outside the collision area — that's expected and fine.
 - **Do NOT** bake in: a ground shadow (engine draws it), a background, labels,

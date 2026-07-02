@@ -21,7 +21,8 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 4 — Mission Slice: ✅ DONE** (Missions I–III via Darryl, title cards, objective HUD + markers)
 
 **Next up → Milestone 5: Boss Slice** (Buckshot Benny & the Rattlebone Gang, phased fight)
-*(Parallel track: Chris walk/aim/shoot sheets — idle is in; USE_SPRITES flips on when walk lands.)*
+*(Parallel track: idle + walk sheets are IN and `USE_SPRITES` is ON — aim/shoot/dash/hurt/mounted
+sheets still to come; they fall back to idle/walk art until then.)*
 
 ---
 
@@ -115,13 +116,17 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
       - M3: *Trouble Under the Chapel* — lockpick cellar → dynamite the collapsed mine →
         ritual-chamber clue + Dead Eye refill ("setup") → Darryl's ominous close (M5 hook).
 - [ ] **M5 — Boss Slice.** Buckshot Benny & the Rattlebone Gang, phased fight.
-- [~] **Art remodel — Chris sprite pipeline (scaffolded, flag-OFF).** ✅ `game/assets.js`
+- [~] **Art remodel — Chris sprite pipeline (LIVE, flag-ON).** ✅ `game/assets.js`
       (loader), `game/chris-manifest.js` (anim defs as JS, not fetched JSON), `game/sprites.js`
       (8-dir resolver + `SpriteAnimator` + `ChrisSprites` + anchored renderer + auto placeholder
       + debug overlay). `Player.render` uses sprites when `USE_SPRITES` on + on-foot, else the
       untouched `drawGunslinger` fallback. Contract: `docs/CHARACTER_SPRITE_SPEC.md`. Art locked:
       three-quarter top-down, 8-direction, full-body (gun snaps to facing; bullets fire at cursor).
-      WAITING ON real PNGs in `assets/characters/chris/` → flip flag, tune scale/anchor.
+      IN: `chris_idle.png` (4f) + `chris_walk.png` (8f, east family rebuilt as west mirrors,
+      258 halo px cleaned). Contract baseline = feet y=108 (walk-native); idle is legacy y=122 via
+      per-anim `anchor`/`scaleMul` manifest overrides (lossless, no resample). `USE_SPRITES: true`,
+      `SPRITE_DRAW_SCALE: 0.51`. Missing sheets fall back: aim/shoot→idle art, dash→walk,
+      hurt→idle, mounted→procedural rider. STILL TO COME: aim/shoot (then dash/hurt/mounted).
 - [ ] **M6 — Art Pass.** Sprite placeholders, ink outlines, film grain/vignette,
       cartoon impact effects, title cards, HUD frame.
 

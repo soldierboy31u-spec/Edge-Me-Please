@@ -179,11 +179,11 @@ facing; bullets still fire at the exact cursor — gameplay unchanged).
 
 ## 8. Constraints & gotchas (learned the hard way)
 
-- **The agent environment has NO outbound network.** You cannot `git push`, hit Netlify, or
-  `pip install`. GitHub/Netlify steps are things the USER runs on their machine. (A GitHub repo
-  push is staged locally — commit `63a35dd`, remote `origin` set to
-  `github.com/soldierboy31u-spec/redemptions-edge-claude` — but the actual push must be run by
-  the user; the repo may or may not exist on GitHub yet.)
+- **`git push` from the agent works fine** (confirmed 2026-07-02) — outbound network access to
+  GitHub is available here, so pushes can be run directly instead of deferring to the user.
+  Current remote: `origin` → `github.com/soldierboy31u-spec/Edge-Me-Please.git` (the earlier
+  `redemptions-edge-claude` repo returned "Repository not found" — never existed on GitHub;
+  the user redirected to Edge-Me-Please instead, which pushed successfully).
 - **`file://` forbids `fetch` + ES modules** → keep manifests as JS, load images via `Image()`.
 - **Windows `Compress-Archive` writes backslash paths** in zips, which break on Linux hosts
   (Netlify) — the `game/` folder 404s. For sharing, prefer the **single-file `dist/index.html`**

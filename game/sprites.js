@@ -130,12 +130,16 @@ function drawChrisSprite(ctx, player, ox, oy) {
   const a = ChrisSprites.animator; if (!a) return false;
   const got = ChrisSprites.resolve(a.anim);
   if (!got.img || !got.def) return false;
-  const m = CHRIS_MANIFEST, scale = CFG.SPRITE_DRAW_SCALE;
+  const m = CHRIS_MANIFEST;
+  // Per-animation overrides let sheets with a different baseline/height coexist
+  // (idle predates the y=108 contract) without resampling the art.
+  const scale = CFG.SPRITE_DRAW_SCALE * (got.def.scaleMul || 1);
+  const anchor = got.def.anchor || m.anchor;
   const dirIdx = Math.max(0, m.directions.indexOf(a.dir));
   const frame = Math.min(a.frame, got.def.framesPerDirection - 1);
   const sx = frame * m.frameWidth, sy = dirIdx * m.frameHeight;
-  const dx = (player.x - ox) - m.anchor.x * scale;
-  const dy = (player.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - m.anchor.y * scale;
+  const dx = (player.x - ox) - anchor.x * scale;
+  const dy = (player.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - anchor.y * scale;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(got.img, sx, sy, m.frameWidth, m.frameHeight, dx, dy, m.frameWidth*scale, m.frameHeight*scale);

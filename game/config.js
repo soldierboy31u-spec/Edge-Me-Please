@@ -109,13 +109,12 @@ const CFG = {
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };
 
-// --- Sprite pipeline (art remodel). Flag OFF = current procedural art. ---
-// Flip USE_SPRITES to true to render Chris from sprite sheets (or auto-generated
-// placeholders until real PNGs are dropped in assets/characters/chris/).
+// --- Sprite pipeline (art remodel). ON since the walk sheets landed. ---
+// Set USE_SPRITES false to fall back to the procedural drawGunslinger() art.
 Object.assign(CFG, {
-  USE_SPRITES: false,        // master switch; false = drawGunslinger() fallback
+  USE_SPRITES: true,         // master switch; false = drawGunslinger() fallback
   SPRITE_PLACEHOLDER: true,  // if a real sheet is missing, synthesize a placeholder
-  SPRITE_DRAW_SCALE: 0.45,   // delivered art is 116px tall in-cell -> ~52px on screen
+  SPRITE_DRAW_SCALE: 0.51,   // spec-baseline art is 102px tall in-cell -> ~52px on screen (idle carries scaleMul 0.88 in the manifest)
   SPRITE_FOOT_OFFSET: 12,    // where the feet plant relative to the collision centre (matches shadow centre, entities.js:441)
   SPRITE_DEBUG: false,       // overlay collision circle + anchor + anim/dir/frame
 });
