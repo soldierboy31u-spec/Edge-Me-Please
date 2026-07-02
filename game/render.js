@@ -89,6 +89,85 @@ function render() {
   if (Game.state===STATE.START) drawStartScreen();
   if (Game.state===STATE.PAUSE) drawPauseScreen();
   if (Game.state===STATE.GAMEOVER) drawGameOver();
+
+  // M6: the whole frame — menus included — goes through the "old film" pass.
+  drawFilmFX();
+}
+
+/* ----- M6 Art Pass: film grain / vignette / sepia (cached offscreen) ----- */
+let _vignetteCv = null;
+let _grainCvs = null;
+function _initFilmFX() {
+  // Vignette: radial falloff baked once at view size.
+  _vignetteCv = document.createElement('canvas');
+  _vignetteCv.width = CFG.VIEW_W; _vignetteCv.height = CFG.VIEW_H;
+  const vc = _vignetteCv.getContext('2d');
+  const g = vc.createRadialGradient(CFG.VIEW_W/2, CFG.VIEW_H/2, CFG.VIEW_H*0.42,
+                                    CFG.VIEW_W/2, CFG.VIEW_H/2, CFG.VIEW_W*0.72);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(10,6,2,1)');
+  vc.fillStyle = g; vc.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  // Grain: a few noise tiles cycled per frame so the grain "crawls" like film.
+  _grainCvs = [];
+  for (let n=0;n<3;n++) {
+    const cv = document.createElement('canvas');
+    cv.width = 192; cv.height = 192;
+    const c = cv.getContext('2d');
+    const img = c.createImageData(192,192);
+    for (let i=0;i<img.data.length;i+=4) {
+      const v = 128 + (Math.random()*2-1)*110;
+      img.data[i]=v; img.data[i+1]=v; img.data[i+2]=v;
+      img.data[i+3] = Math.random()<0.5 ? 255 : 0;   // sparse, punchy grain
+    }
+    c.putImageData(img,0,0);
+    _grainCvs.push(cv);
+  }
+}
+function drawFilmFX() {
+  if (!CFG.FX_GRAIN && !CFG.FX_VIGNETTE && !CFG.FX_SEPIA) return;
+  if (!_vignetteCv) _initFilmFX();
+  ctx.save();
+  // Warm sepia wash
+  if (CFG.FX_SEPIA > 0) {
+    ctx.globalCompositeOperation='multiply';
+    ctx.globalAlpha = CFG.FX_SEPIA;
+    ctx.fillStyle = '#e0b070';
+    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+    ctx.globalCompositeOperation='source-over';
+  }
+  // Vignette
+  if (CFG.FX_VIGNETTE > 0) {
+    ctx.globalAlpha = CFG.FX_VIGNETTE;
+    ctx.drawImage(_vignetteCv, 0, 0);
+  }
+  // Crawling grain — cycle tiles + jitter the offset each frame
+  if (CFG.FX_GRAIN > 0) {
+    ctx.globalAlpha = CFG.FX_GRAIN;
+    ctx.globalCompositeOperation='overlay';
+    const cv = _grainCvs[Math.floor(Game.time*24)%3];
+    const jx = ((Game.time*97)%1)*192, jy = ((Game.time*61)%1)*192;
+    for (let x=-jx; x<CFG.VIEW_W; x+=192)
+      for (let y=-jy; y<CFG.VIEW_H; y+=192)
+        ctx.drawImage(cv, x, y);
+  }
+  ctx.restore();
+}
+
+/* M6: western HUD panel — leather backdrop, double border, brass corner rivets. */
+function drawPanel(x, y, w, h) {
+  ctx.save();
+  const g = ctx.createLinearGradient(x, y, x, y+h);
+  g.addColorStop(0,'rgba(34,22,10,0.82)'); g.addColorStop(1,'rgba(20,12,5,0.82)');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle='rgba(70,48,22,0.95)'; ctx.lineWidth=3; ctx.strokeRect(x+1.5, y+1.5, w-3, h-3);
+  ctx.strokeStyle='rgba(190,150,84,0.65)'; ctx.lineWidth=1; ctx.strokeRect(x+4.5, y+4.5, w-9, h-9);
+  ctx.fillStyle='#caa14a';
+  for (const [rx,ry] of [[x+7,y+7],[x+w-7,y+7],[x+7,y+h-7],[x+w-7,y+h-7]]) {
+    ctx.beginPath(); ctx.arc(rx,ry,2.2,0,TAU); ctx.fill();
+    ctx.fillStyle='#8a6a2a'; ctx.beginPath(); ctx.arc(rx+0.7,ry+0.7,1,0,TAU); ctx.fill();
+    ctx.fillStyle='#caa14a';
+  }
+  ctx.restore();
 }
 
 function drawGround(ox, oy) {
@@ -690,10 +769,7 @@ function drawHUD() {
   ctx.textAlign='left';
 
   // Panel backdrop
-  ctx.fillStyle='rgba(20,14,6,0.6)';
-  ctx.fillRect(16, 16, 250, 166);
-  ctx.strokeStyle='rgba(120,90,50,0.7)'; ctx.lineWidth=2;
-  ctx.strokeRect(16,16,250,166);
+  drawPanel(16, 16, 250, 166);
 
   // Health bar
   ctx.fillStyle='#3a1010'; ctx.fillRect(28, 30, 200, 18);
@@ -745,8 +821,7 @@ function drawHUD() {
 
   // Money / score (top-right)
   ctx.textAlign='right';
-  ctx.fillStyle='rgba(20,14,6,0.6)'; ctx.fillRect(CFG.VIEW_W-210,16,194,76);
-  ctx.strokeStyle='rgba(120,90,50,0.7)'; ctx.strokeRect(CFG.VIEW_W-210,16,194,76);
+  drawPanel(CFG.VIEW_W-210, 16, 194, 76);
   ctx.fillStyle='#e8d56a'; ctx.font='bold 20px Georgia';
   ctx.fillText('$' + p.money, CFG.VIEW_W-26, 42);
   ctx.fillStyle='#c8b890'; ctx.font='13px Georgia';
@@ -786,8 +861,7 @@ function drawHUD() {
   const boss = Game.enemies.find(e=>e.kind==='boss' && !e.dead);
   if (boss) {
     const bw=420, bh=14, bx=CFG.VIEW_W/2-bw/2, by=CFG.VIEW_H-44;
-    ctx.fillStyle='rgba(20,10,6,0.8)'; ctx.fillRect(bx-6,by-24,bw+12,bh+32);
-    ctx.strokeStyle='rgba(160,120,60,0.8)'; ctx.lineWidth=1.5; ctx.strokeRect(bx-6,by-24,bw+12,bh+32);
+    drawPanel(bx-6, by-24, bw+12, bh+32);
     ctx.fillStyle='#e8c8a0'; ctx.font='bold 12px Georgia'; ctx.textAlign='center';
     ctx.fillText('☠  BUCKSHOT BENNY' + (boss.phase===3?'  —  DEMON-TOUCHED':''), CFG.VIEW_W/2, by-9);
     ctx.fillStyle='#2a1414'; ctx.fillRect(bx,by,bw,bh);
@@ -839,9 +913,7 @@ function drawMinimap() {
   const sx=MW/CFG.WORLD_W, sy=MH/CFG.WORLD_H;
   ctx.save();
   ctx.globalAlpha=0.9;
-  ctx.fillStyle='rgba(20,14,6,0.78)';
-  ctx.fillRect(MX,MY,MW,MH);
-  ctx.strokeStyle='rgba(140,104,56,0.9)'; ctx.lineWidth=2; ctx.strokeRect(MX,MY,MW,MH);
+  drawPanel(MX-2, MY-2, MW+4, MH+4);
   // Buildings + camp
   ctx.fillStyle='#7a5a34';
   for (const b of BUILDINGS) ctx.fillRect(MX+b.x*sx, MY+b.y*sy, Math.max(2,b.w*sx), Math.max(2,b.h*sy));

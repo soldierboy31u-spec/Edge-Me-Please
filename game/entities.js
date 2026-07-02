@@ -71,6 +71,37 @@ class Particle {
   }
 }
 
+// M6: cartoon impact starburst — a spiky ink flash that pops and dies fast.
+// Duck-typed like Particle so it can ride in Game.particles.
+class HitSpark {
+  constructor(x, y, size, color) {
+    this.x=x; this.y=y; this.size=size||14; this.color=color||'#fff6d0';
+    this.life=0.16; this.maxLife=0.16; this.rot=rand(0,TAU); this.dead=false;
+  }
+  update(dt) { this.life -= dt; if (this.life<=0) this.dead=true; }
+  render(ctx, ox, oy) {
+    const a = clamp(this.life/this.maxLife, 0, 1);
+    const s = this.size * (1.5 - a*0.5);   // expands as it fades
+    const tx=this.x-ox, ty=this.y-oy;
+    ctx.save();
+    ctx.translate(tx,ty); ctx.rotate(this.rot);
+    ctx.globalAlpha = a;
+    // 6-point star: long spikes alternating with short ones
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    for (let i=0;i<12;i++) {
+      const r = (i%2===0) ? s : s*0.38;
+      const an = i/12*TAU;
+      const px = Math.cos(an)*r, py = Math.sin(an)*r;
+      i ? ctx.lineTo(px,py) : ctx.moveTo(px,py);
+    }
+    ctx.closePath(); ctx.fill();
+    // ink rim
+    ctx.strokeStyle='rgba(26,18,10,0.9)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.restore();
+  }
+}
+
 class FloatText {
   constructor(x, y, text, color) {
     this.x=x; this.y=y; this.text=text; this.color=color||'#fff';
@@ -441,6 +472,26 @@ class Player {
     ctx.beginPath(); ctx.ellipse(tx, ty+12, 16, 7, 0, 0, TAU); ctx.fill();
 
     if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
+
+    // M6: dash speed-lines — cartoon smear streaks trailing the burst.
+    if (CFG.FX_IMPACT && this.dashTimer > 0 && !this.mounted) {
+      const sp = Math.hypot(this.vx, this.vy);
+      if (sp > 60) {
+        const a = Math.atan2(this.vy, this.vx);
+        ctx.save();
+        ctx.strokeStyle='rgba(240,228,200,0.55)'; ctx.lineCap='round';
+        for (let i=-1;i<=1;i++) {
+          const off = i*9;
+          const px = tx - Math.cos(a)*14 + Math.cos(a+Math.PI/2)*off;
+          const py = ty - Math.sin(a)*14 + Math.sin(a+Math.PI/2)*off - 8;
+          ctx.lineWidth = i===0 ? 3 : 2;
+          const len = 26 + (i===0?14:0);
+          ctx.beginPath(); ctx.moveTo(px,py);
+          ctx.lineTo(px - Math.cos(a)*len, py - Math.sin(a)*len); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
 
     // Character art: sprite pipeline when enabled/ready/on-foot, else procedural fallback.
     let drew = false;
@@ -975,6 +1026,7 @@ function drawBandit(ctx, x, y, aim, recoil, walk, hurt, pal) {
   ctx.translate(0, Math.sin(walk)*1.5);
   ctx.fillStyle = hurt ? '#d88' : pal.coat;
   ctx.beginPath(); ctx.ellipse(0,2,12,15,0,0,TAU); ctx.fill();
+  if (CFG.FX_OUTLINE) { ctx.strokeStyle='rgba(24,16,8,0.85)'; ctx.lineWidth=2; ctx.stroke(); }  // M6 ink
   // arm + gun
   const gx=Math.cos(aim)*(18-recoil*3), gy=Math.sin(aim)*(18-recoil*3);
   ctx.strokeStyle = hurt? '#d88' : pal.coat;
@@ -996,6 +1048,7 @@ function drawTownsfolk(ctx, x, y, aim, walk, color) {
   ctx.translate(0, Math.sin(walk)*1.2);
   ctx.fillStyle=color;
   ctx.beginPath(); ctx.ellipse(0,2,10,13,0,0,TAU); ctx.fill();
+  if (CFG.FX_OUTLINE) { ctx.strokeStyle='rgba(24,16,8,0.8)'; ctx.lineWidth=2; ctx.stroke(); }  // M6 ink
   ctx.fillStyle='#c89a72';
   ctx.beginPath(); ctx.arc(0,-3,6,0,TAU); ctx.fill();
   ctx.fillStyle='#3a2a1a';

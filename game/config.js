@@ -123,6 +123,13 @@ const CFG = {
   BOSS_CHARGE_DMG: 24,
   BOSS_SUMMON_N: 2,          // Rattlebone reinforcements per phase transition
   M4_REWARD: 150,            // Darryl pays well for a war
+
+  // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
+  FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
+  FX_VIGNETTE: 0.32,         // darkened corners (old-photo framing)
+  FX_SEPIA: 0.10,            // warm sepia wash strength
+  FX_OUTLINE: true,          // ink outlines on Chris + procedural folk
+  FX_IMPACT: true,           // cartoon starbursts on hits/kills + dash speed-lines
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };

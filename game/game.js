@@ -101,6 +101,8 @@ const Game = {
       this.particles.push(new Particle(x,y,Math.cos(a)*sp,Math.sin(a)*sp,rand(0.2,0.5),
         col[randInt(0,1)], rand(2,5), 60));
     }
+    // M6: cartoon hit-pop
+    if (CFG.FX_IMPACT) this.particles.push(new HitSpark(x, y, 10, kind==='blood' ? '#ffd8a0' : '#fff0c0'));
   },
   // Dynamite detonation — radial damage + knockback, applied once. (Milestone 1)
   spawnExplosion(x,y) {
@@ -167,6 +169,8 @@ const Game = {
 
   onEnemyKilled(e) {
     this.kills++;
+    // M6: KO starburst — bigger for bigger folk
+    if (CFG.FX_IMPACT) this.particles.push(new HitSpark(e.x, e.y, e.kind==='boss'?34:18, '#ffe89a'));
     this.score += e.kind==='boss'?1000 : e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
     this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
     if (e.kind==='lawman') Wanted.onLawmanKilled();

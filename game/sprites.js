@@ -85,9 +85,22 @@ function makePlaceholderSheet(name, def, m) {
 const ChrisSprites = {
   ready: false,
   animator: null,
+  ink: {},        // anim name -> black-silhouette copy of its sheet (M6 outlines)
   init() {
     this.animator = new SpriteAnimator(CHRIS_MANIFEST);
     if (CFG.USE_SPRITES) this.load();
+  },
+  // Build the ink silhouette for a sheet once; drawn at ±1px under the real
+  // frame to give Chris a hand-drawn contour. Cheap: 4 extra draws per frame.
+  _buildInk(name, img) {
+    const cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = 'source-in';
+    c.fillStyle = '#1a120a';
+    c.fillRect(0, 0, cv.width, cv.height);
+    this.ink[name] = cv;
   },
   async load() {
     const m = CHRIS_MANIFEST;
@@ -97,9 +110,13 @@ const ChrisSprites = {
       jobs.push(Assets.loadImage('chris_' + name, m.basePath + def.file).then((img) => {
         if (!img && CFG.SPRITE_PLACEHOLDER && def.fallback === undefined) {
           // Only synthesize placeholders for the core (non-fallback) anims.
-          Assets.set('chris_' + name, makePlaceholderSheet(name, def, m), 'placeholder');
+          const ph = makePlaceholderSheet(name, def, m);
+          Assets.set('chris_' + name, ph, 'placeholder');
+          if (CFG.FX_OUTLINE) this._buildInk(name, ph);
         } else if (!img && CFG.SPRITE_PLACEHOLDER && def.fallback === null) {
           // mounted with no art: leave empty so the procedural rider is used.
+        } else if (img && CFG.FX_OUTLINE) {
+          this._buildInk(name, img);
         }
       }));
     }
@@ -142,6 +159,16 @@ function drawChrisSprite(ctx, player, ox, oy) {
   const dy = (player.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - anchor.y * scale;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = true;
+  // M6 ink outline: the frame's silhouette at ±1px in four directions.
+  const inkCv = CFG.FX_OUTLINE && ChrisSprites.ink[got.name];
+  if (inkCv) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      ctx.drawImage(inkCv, sx, sy, m.frameWidth, m.frameHeight,
+                    dx+ix, dy+iy, m.frameWidth*scale, m.frameHeight*scale);
+    }
+    ctx.restore();
+  }
   ctx.drawImage(got.img, sx, sy, m.frameWidth, m.frameHeight, dx, dy, m.frameWidth*scale, m.frameHeight*scale);
   ctx.imageSmoothingEnabled = prev;
   return true;
