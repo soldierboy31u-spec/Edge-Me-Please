@@ -221,6 +221,7 @@ class Player {
     this.dead=false;
     this.facing=1;
     this.walkCycle=0;
+    this.moveX=0; this.moveY=0; this.moveLen=0;   // raw movement input (sprite facing)
     // Milestone 1 — dash / dodge
     this.dashTimer=0;    // >0 while the burst is active
     this.dashCool=0;     // cooldown remaining
@@ -256,6 +257,9 @@ class Player {
     const ilen = Math.hypot(ix, iy);
     const il = ilen || 1;
     ix/=il; iy/=il;
+    // Raw movement INPUT, kept separate from physics velocity — the sprite
+    // faces this instantly on keypress instead of waiting for momentum to decay.
+    this.moveX = ix; this.moveY = iy; this.moveLen = ilen;
 
     // --- Dash trigger (Shift) — on foot only; horse is already fast ---
     if (this.dashCool>0) this.dashCool -= dt;
@@ -346,16 +350,23 @@ class Player {
   // Map existing gameplay state -> animation name + facing direction (RE-ART-006).
   updateSpriteAnim(dt) {
     const a = ChrisSprites.animator;
-    // Chris's gun always tracks the mouse, so face the aim direction.
-    a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
-    const speed = Math.hypot(this.vx, this.vy);
+    const moving = this.moveLen > 0;
+    // Anim state from INPUT, not decaying velocity — no walk/aim flapping
+    // while momentum bleeds off after the keys are released.
     // Priority (low -> high): aim < walk < dash < shoot < mounted < hurt
     let state = 'aim';
-    if (speed > 25) state = 'walk';
+    if (moving) state = 'walk';
     if (this.dashTimer > 0) state = 'dash';
     if (this.recoil > 0.5 || (a.anim === 'shoot' && !a.finished)) state = 'shoot';  // let the one-shot finish
     if (this.mounted) state = 'mounted';
     if (this.hurtFlash > 0) state = 'hurt';
+    // Facing: the shot flash faces where he fires; a dash faces its burst
+    // direction; walking faces the movement INPUT the instant it changes;
+    // standing still faces the mouse.
+    if (state === 'shoot') a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
+    else if (this.dashTimer > 0) a.setDirection(vectorTo8DirName(this.dashDX, this.dashDY));
+    else if (moving) a.setDirection(vectorTo8DirName(this.moveX, this.moveY));
+    else a.setDirection(vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim)));
     a.setAnimation(state);
     a.update(dt);
   }
