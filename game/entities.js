@@ -576,6 +576,8 @@ class Enemy {
     this.knockVX=0; this.knockVY=0;  // explosion/bullet knockback impulse
     this.stun=0;               // >0 = roped/stunned, can't act (lasso)
     this.home={x,y};
+    // Visual-only sprite animator (bandit sheets; other kinds stay procedural)
+    if (typeof BANDIT_MANIFEST !== 'undefined') this.spriteAnim = new SpriteAnimator(BANDIT_MANIFEST);
   }
   applyKnockback(ang, force) { this.knockVX += Math.cos(ang)*force; this.knockVY += Math.sin(ang)*force; }
 
@@ -665,6 +667,16 @@ class Enemy {
 
     if (this.recoil>0) this.recoil=Math.max(0,this.recoil-dt*6);
     if (this.hurtFlash>0) this.hurtFlash-=dt;
+
+    // Visual-only sprite anim state (walk when moving, face target/heading).
+    if (this.spriteAnim && CFG.USE_SPRITES) {
+      const sp = Math.hypot(this.vx, this.vy);
+      this.spriteAnim.setAnimation(sp > 20 ? 'walk' : 'idle');
+      const v = sp > 20 ? isoScreenVec(this.vx, this.vy)
+                        : isoScreenVec(Math.cos(this.aim), Math.sin(this.aim));
+      this.spriteAnim.setDirection(vectorTo8DirName(v[0], v[1]));
+      this.spriteAnim.update(dt);
+    }
   }
 
   resolveCollisions() {
@@ -726,7 +738,11 @@ class Enemy {
       ctx.beginPath(); ctx.arc(tx+Math.cos(this.aim)*22, ty+Math.sin(this.aim)*22, 2+charge*2, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0, palette);
+    // Bandits use the sprite sheets when loaded; other kinds (and the
+    // fallback) keep the procedural art with their palette identity.
+    const drewSprite = this.kind==='bandit' && CFG.USE_SPRITES
+      && typeof drawBanditSprite !== 'undefined' && drawBanditSprite(ctx, this, ox, oy);
+    if (!drewSprite) drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0, palette);
     // Roped/stunned — spinning stars over the head
     if (this.stun>0) {
       ctx.save(); ctx.fillStyle='#e8d56a'; ctx.font='11px Georgia'; ctx.textAlign='center';

@@ -235,6 +235,91 @@ function drawHorseSprite(ctx, horse, ox, oy) {
   return true;
 }
 
+/* ---- Bandit sprites (shared sheets, one SpriteAnimator per enemy) --------
+   Same 8-dir contract as Chris (docs/CHARACTER_SPRITE_SPEC.md). Used for
+   kind==='bandit' only; enforcers/lawmen/boss stay procedural until they
+   get their own sheets (see docs/ART_TICKETS.md). */
+const BANDIT_MANIFEST = {
+  frameWidth: 128,
+  frameHeight: 128,
+  anchor: { x: 64, y: 108 },
+  basePath: 'assets/characters/bandit/',
+  directions: ['south','southwest','west','northwest','north','northeast','east','southeast'],
+  animations: {
+    idle: { file: 'bandit_idle.png', framesPerDirection: 4, frameDurationMs: 190, loop: true },
+    walk: { file: 'bandit_walk.png', framesPerDirection: 8, frameDurationMs: 95,  loop: true, fallback: 'idle' },
+  },
+  fallbackAnimation: 'idle',
+};
+const BanditSprites = {
+  ready: false,
+  ink: {},      // anim -> black silhouette sheet (M6 outlines)
+  red: {},      // anim -> red silhouette sheet (hurt flash tint)
+  _tint(img, color) {
+    const cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = 'source-in';
+    c.fillStyle = color;
+    c.fillRect(0, 0, cv.width, cv.height);
+    return cv;
+  },
+  load() {
+    if (!CFG.USE_SPRITES) return;
+    const jobs = [];
+    for (const [name, def] of Object.entries(BANDIT_MANIFEST.animations)) {
+      jobs.push(Assets.loadImage('bandit_' + name, BANDIT_MANIFEST.basePath + def.file).then((img) => {
+        if (img) {
+          if (CFG.FX_OUTLINE) this.ink[name] = this._tint(img, '#1a120a');
+          this.red[name] = this._tint(img, '#e04030');
+        }
+      }));
+    }
+    Promise.all(jobs).then(() => {
+      // Only flip on when the core idle sheet actually loaded.
+      this.ready = !!Assets.getImage('bandit_idle');
+      if (this.ready) console.log('[sprites] bandit sheets in — procedural bandits retired');
+    });
+  },
+};
+// Draw an enemy's bandit sprite anchored at its feet. Returns false when the
+// sheets aren't in (caller falls back to the procedural drawBandit art).
+function drawBanditSprite(ctx, e, ox, oy) {
+  if (!BanditSprites.ready || !e.spriteAnim) return false;
+  const m = BANDIT_MANIFEST, a = e.spriteAnim;
+  let name = a.anim, def = m.animations[name], img = Assets.getImage('bandit_' + name);
+  if (!img) { name = 'idle'; def = m.animations.idle; img = Assets.getImage('bandit_idle'); }
+  if (!img) return false;
+  const scale = CFG.SPRITE_DRAW_SCALE * 0.88;   // bandits read a touch smaller than Chris
+  const dirIdx = Math.max(0, m.directions.indexOf(a.dir));
+  const frame = Math.min(a.frame, def.framesPerDirection - 1);
+  const sx = frame * m.frameWidth, sy = dirIdx * m.frameHeight;
+  const dx = (e.x - ox) - m.anchor.x * scale;
+  const dy = (e.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - m.anchor.y * scale;
+  const prev = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = true;
+  const inkCv = CFG.FX_OUTLINE && BanditSprites.ink[name];
+  if (inkCv) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      ctx.drawImage(inkCv, sx, sy, m.frameWidth, m.frameHeight,
+                    dx+ix, dy+iy, m.frameWidth*scale, m.frameHeight*scale);
+    }
+    ctx.restore();
+  }
+  ctx.drawImage(img, sx, sy, m.frameWidth, m.frameHeight, dx, dy, m.frameWidth*scale, m.frameHeight*scale);
+  // hurt flash: red silhouette pulse over the frame
+  if (e.hurtFlash > 0 && BanditSprites.red[name]) {
+    ctx.save(); ctx.globalAlpha = 0.5;
+    ctx.drawImage(BanditSprites.red[name], sx, sy, m.frameWidth, m.frameHeight,
+                  dx, dy, m.frameWidth*scale, m.frameHeight*scale);
+    ctx.restore();
+  }
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
 /* ---- Iso building art (M8 Tier 2) ---------------------------------------
    Generated iso PNGs (docs/ISO_BUILDING_SPEC.md) replace the placeholder
    diamonds. Each entry anchors the art's ground-footprint centre onto the
