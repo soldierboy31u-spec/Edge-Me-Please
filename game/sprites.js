@@ -155,8 +155,12 @@ function drawChrisSprite(ctx, player, ox, oy) {
   const dirIdx = Math.max(0, m.directions.indexOf(a.dir));
   const frame = Math.min(a.frame, got.def.framesPerDirection - 1);
   const sx = frame * m.frameWidth, sy = dirIdx * m.frameHeight;
+  // Procedural step-bob while walking — the front/back walk rows are a single
+  // frozen frame (see docs/tools/rebuild_walk.py), so code supplies the motion.
+  const bob = (a.anim === 'walk' && CFG.WALK_BOB_PX)
+    ? Math.abs(Math.sin(Game.time * Math.PI * (CFG.WALK_BOB_HZ||5))) * -CFG.WALK_BOB_PX : 0;
   const dx = (player.x - ox) - anchor.x * scale;
-  const dy = (player.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - anchor.y * scale;
+  const dy = (player.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - anchor.y * scale + bob;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = true;
   // M6 ink outline: the frame's silhouette at ±1px in four directions.

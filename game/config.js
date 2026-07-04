@@ -146,6 +146,8 @@ Object.assign(CFG, {
   SPRITE_DRAW_SCALE: 0.51,   // spec-baseline art is 102px tall in-cell -> ~52px on screen (idle carries scaleMul 0.88 in the manifest)
   SPRITE_FOOT_OFFSET: 12,    // where the feet plant relative to the collision centre (matches shadow centre, entities.js:441)
   SPRITE_DEBUG: false,       // overlay collision circle + anchor + anim/dir/frame
+  WALK_BOB_PX: 2,            // procedural step-bob amplitude while walking (px)
+  WALK_BOB_HZ: 5,            // step-bob frequency; ~matches the 90ms frame cadence
 });
 
 // Difficulty modes. Multipliers scale enemy stats off the base CFG values.
