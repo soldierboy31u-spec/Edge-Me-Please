@@ -25,7 +25,7 @@ const BUILDINGS = [
     door:{x:TOWN_CX+525,y:TOWN_CY-104}, action:'lockdoor', label:'Pick the lock' },
   { name: 'Broken Spur Stable',    x: TOWN_CX+420, y: TOWN_CY+40,  w: 220, h: 160, color:'#4f3a24', iso:'stable',
     door:{x:TOWN_CX+530,y:TOWN_CY+38}, action:'none', label:'' },
-  { name: 'Abandoned Chapel',      x: TOWN_CX-560, y: TOWN_CY+360, w: 200, h: 220, color:'#4a4038', cross:true,
+  { name: 'Abandoned Chapel',      x: TOWN_CX-560, y: TOWN_CY+360, w: 200, h: 220, color:'#4a4038', cross:true, iso:'chapel',
     door:{x:TOWN_CX-460,y:TOWN_CY+582}, action:'chapel', label:'Pick the cellar lock' },
 ];
 
