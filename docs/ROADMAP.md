@@ -21,9 +21,11 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 4 — Mission Slice: ✅ DONE** (Missions I–III via Darryl, title cards, objective HUD + markers)
 **Milestone 5 — Boss Slice: ✅ DONE** (Mission IV: Buckshot Benny at the Rattlebone hideout, 3-phase fight)
 **Milestone 6 — Art Pass: ✅ DONE** (film grain/vignette/sepia, ink outlines, cartoon impacts, western HUD panels)
+**Milestone 7 — Depth Pass (Tier 1): ✅ DONE** (building south wall-faces + doors/windows, y-sorted world draw list — props/fences/entities occlude correctly; `DEPTH_*` in config.js)
 
-**Next up →** pick from the Idea Parking Lot (demon-arc finale is the natural M7 —
-Darryl's "Benny was a symptom" hook is live). **The sprite set is COMPLETE** — all sheets in.
+**Next up →** pick from the Idea Parking Lot (demon-arc finale is the natural M8 —
+Darryl's "Benny was a symptom" hook is live), or Depth Pass Tier 2 (true isometric
+diamond — big art lift, render-layer only). **The sprite set is COMPLETE** — all sheets in.
 *(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
 `horse_idle.png` (1f/dir, `game/horse-manifest.js`, scaleMul 1.4 to match mounted) with
@@ -143,6 +145,15 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
       `anchor`/`scaleMul` manifest overrides (lossless, no resample). `USE_SPRITES: true`,
       `SPRITE_DRAW_SCALE: 0.51`. Missing sheets fall back: aim→idle art, dash→walk,
       hurt→idle, mounted→procedural rider. STILL TO COME: aim (then dash/hurt/mounted).
+- [x] **M7 — Depth Pass (Tier 1).** ✅ Diablo-ish 3/4 depth without touching gameplay:
+      buildings grew shaded **south wall-faces** (vertical siding, eave + contact shadows,
+      door on the face for south-door buildings, recessed entry notch on the roof's north
+      edge for square-facing ones, glowing windows on wide storefronts); the world now
+      draws via a **y-sorted list** (scenery, per-rail fences, buildings, landmarks, props,
+      wanted board, Darryl, pickups, horses, townsfolk, enemies, player) so anything with
+      a more southern baseline occludes what's behind it. Tunables `DEPTH_WALL_H` /
+      `DEPTH_SORT` in config.js (0/false = legacy flat look). Tier 2 (true isometric
+      diamond projection) parked — needs all world art redrawn at diamond angles.
 - [x] **M6 — Art Pass.** ✅ All code-side, tunable in `config.js` (`FX_*`, 0/false disables):
       **film pass** over the whole frame incl. menus — animated crawling grain (3 cached
       noise tiles), baked radial vignette, warm sepia multiply wash; **ink outlines** —

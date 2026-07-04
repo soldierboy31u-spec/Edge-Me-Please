@@ -130,6 +130,10 @@ const CFG = {
   FX_SEPIA: 0.10,            // warm sepia wash strength
   FX_OUTLINE: true,          // ink outlines on Chris + procedural folk
   FX_IMPACT: true,           // cartoon starbursts on hits/kills + dash speed-lines
+
+  // --- M7 Depth Pass (Tier 1 "Diablo feel"): purely visual, collision untouched ---
+  DEPTH_WALL_H: 30,          // building south wall-face height in px; 0 = flat pre-M7 look
+  DEPTH_SORT: true,          // y-sort world objects so nearer things draw in front
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };

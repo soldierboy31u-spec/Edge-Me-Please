@@ -18,44 +18,63 @@ function render() {
   // Landmark ground decals (riverbed, ghost trail, shrine pad) + cache mounds
   drawLandmarkGround(ox, oy);
 
-  // --- World objects sorted roughly by y for fake depth ---
-  // Scenery behind
-  for (const s of SCENERY) {
-    if (s.x < ox-60 || s.x > ox+CFG.VIEW_W+60 || s.y < oy-60 || s.y > oy+CFG.VIEW_H+60) continue;
-    drawScenery(s, ox, oy);
-  }
-  // Fences
-  ctx.fillStyle='#3a2a18';
-  for (const f of FENCES) {
-    drawFence(f, ox, oy);
-  }
-  // Campfire glow sits under the camp structures
+  // Campfire glow sits under everything at ground level
   drawCampfire(ox, oy);
-  // Buildings + camp
-  for (const b of STRUCTURES) drawBuilding(b, ox, oy);
-  // Landmark structures (arch span, mine, wagons), town props, wanted board
-  drawLandmarkStructures(ox, oy);
-  drawProps(ox, oy);
-  drawWantedBoard(ox, oy);
   // Manhunt: search-zone ring + lawman vision cones (ground level, under NPCs)
   drawManhunt(ox, oy);
-  // Darryl by the fire
-  drawDarryl(ox, oy);
 
-  // Pickups
-  for (const pk of Game.pickups) pk.render(ctx, ox, oy);
-
-  // Idle horses
-  for (const h of Game.horses) if (!h.ridden) h.render(ctx, ox, oy);
-
-  // Townsfolk
-  for (const t of Game.townsfolk) t.render(ctx, ox, oy);
-
-  // Enemies
-  for (const e of Game.enemies) e.render(ctx, ox, oy);
-
-  // Player
-  if (!Game.player.dead || Game.state!==STATE.GAMEOVER) Game.player.render(ctx, ox, oy);
+  if (CFG.DEPTH_SORT) {
+    // --- M7 Depth Pass: one y-sorted draw list — anything with a more
+    // southern baseline draws in front. Purely visual; collision untouched.
+    const D = [];
+    for (const s of SCENERY) {
+      if (s.x < ox-60 || s.x > ox+CFG.VIEW_W+60 || s.y < oy-60 || s.y > oy+CFG.VIEW_H+60) continue;
+      D.push([s.y + s.r*0.5, () => drawScenery(s, ox, oy)]);
+    }
+    for (const f of FENCES) {
+      if (f.x < ox-40 || f.x > ox+CFG.VIEW_W+40 || f.y+f.h < oy-40 || f.y > oy+CFG.VIEW_H+40) continue;
+      for (let yy=0; yy<f.h; yy+=28) {
+        const railY = yy;
+        D.push([f.y + yy + 16, () => drawFenceRail(f, railY, ox, oy)]);
+      }
+    }
+    for (const b of STRUCTURES) D.push([b.y + b.h, () => drawBuilding(b, ox, oy)]);
+    for (const lm of LANDMARKS) {
+      if (!onScreen(lm.x, lm.y, 200)) continue;
+      D.push([lm.y, () => drawLandmarkStructure(lm, ox, oy)]);
+    }
+    for (const p of PROPS) {
+      if (!onScreen(p.x, p.y, 46)) continue;
+      D.push([p.y + p.r*0.5, () => drawProp(p, ox, oy)]);
+    }
+    D.push([WANTED_BOARD.y + 16, () => drawWantedBoard(ox, oy)]);
+    D.push([DARRYL.y + 11, () => drawDarryl(ox, oy)]);
+    for (const pk of Game.pickups) D.push([pk.y + 6, () => pk.render(ctx, ox, oy)]);
+    for (const h of Game.horses) if (!h.ridden) D.push([h.y + 12, () => h.render(ctx, ox, oy)]);
+    for (const t of Game.townsfolk) D.push([t.y + 10, () => t.render(ctx, ox, oy)]);
+    for (const e of Game.enemies) D.push([e.y + 10, () => e.render(ctx, ox, oy)]);
+    if (!Game.player.dead || Game.state!==STATE.GAMEOVER)
+      D.push([Game.player.y + CFG.SPRITE_FOOT_OFFSET, () => Game.player.render(ctx, ox, oy)]);
+    D.sort((a, b) => a[0] - b[0]);
+    for (const d of D) d[1]();
+  } else {
+    // --- Legacy fixed-layer order (pre-M7) ---
+    for (const s of SCENERY) {
+      if (s.x < ox-60 || s.x > ox+CFG.VIEW_W+60 || s.y < oy-60 || s.y > oy+CFG.VIEW_H+60) continue;
+      drawScenery(s, ox, oy);
+    }
+    for (const f of FENCES) drawFence(f, ox, oy);
+    for (const b of STRUCTURES) drawBuilding(b, ox, oy);
+    drawLandmarkStructures(ox, oy);
+    drawProps(ox, oy);
+    drawWantedBoard(ox, oy);
+    drawDarryl(ox, oy);
+    for (const pk of Game.pickups) pk.render(ctx, ox, oy);
+    for (const h of Game.horses) if (!h.ridden) h.render(ctx, ox, oy);
+    for (const t of Game.townsfolk) t.render(ctx, ox, oy);
+    for (const e of Game.enemies) e.render(ctx, ox, oy);
+    if (!Game.player.dead || Game.state!==STATE.GAMEOVER) Game.player.render(ctx, ox, oy);
+  }
 
   // Live dynamite sticks (under bullets/particles)
   for (const dy of Game.dynamites) dy.render(ctx, ox, oy);
@@ -235,23 +254,26 @@ function drawScenery(s, ox, oy) {
   ctx.restore();
 }
 
-function drawFence(f, ox, oy) {
+function drawFence(f, ox, oy) {           // legacy unsorted path (DEPTH_SORT off)
+  for (let yy=0; yy<f.h; yy+=28) drawFenceRail(f, yy, ox, oy);
+}
+// One fence rail + its stretch of connecting post — sortable by its own y.
+function drawFenceRail(f, yy, ox, oy) {
   const tx=f.x-ox, ty=f.y-oy;
   ctx.fillStyle='#3a2a18';
-  // Vertical rail with posts
-  for (let yy=0; yy<f.h; yy+=28) {
-    ctx.fillRect(tx, ty+yy, f.w, 18);
-  }
-  ctx.fillRect(tx+2, ty, 3, f.h);
+  ctx.fillRect(tx, ty+yy, f.w, 18);
+  ctx.fillRect(tx+2, ty+yy, 3, Math.min(28, f.h-yy));
 }
 
 function drawBuilding(b, ox, oy) {
   const tx=b.x-ox, ty=b.y-oy;
+  const wallH = CFG.DEPTH_WALL_H;                   // M7: 0 = flat pre-depth look
+  const southDoor = b.door.y > b.y + b.h/2;
   ctx.save();
-  // Drop shadow
+  // Drop shadow (covers roof + wall face)
   ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.fillRect(tx+8, ty+10, b.w, b.h);
-  // Walls
+  ctx.fillRect(tx+8, ty+10, b.w, b.h+wallH);
+  // Roof slab
   ctx.fillStyle=b.color;
   ctx.fillRect(tx, ty, b.w, b.h);
   // Plank texture
@@ -260,15 +282,40 @@ function drawBuilding(b, ox, oy) {
   // Roof band
   ctx.fillStyle='rgba(0,0,0,0.3)';
   ctx.fillRect(tx, ty, b.w, 16);
-  // Door
   const dx=b.door.x-ox, dy=b.door.y-oy;
-  ctx.fillStyle='#1e140a';
-  ctx.fillRect(dx-13, dy-30, 26, 32);
-  ctx.fillStyle='#2e2012';
-  ctx.fillRect(dx-15, dy-34, 30, 6);
+  if (wallH > 0) {
+    // M7 south wall face below the roof slab — vertical siding in shade
+    const wy = ty + b.h;
+    ctx.fillStyle = b.color;             ctx.fillRect(tx, wy, b.w, wallH);
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';  ctx.fillRect(tx, wy, b.w, wallH);   // shaded face
+    ctx.strokeStyle='rgba(0,0,0,0.28)'; ctx.lineWidth=1;
+    for (let xx=12; xx<b.w; xx+=18) { ctx.beginPath(); ctx.moveTo(tx+xx,wy); ctx.lineTo(tx+xx,wy+wallH); ctx.stroke(); }
+    // eave line where roof meets the face + ground contact shadow
+    ctx.fillStyle='rgba(0,0,0,0.4)';  ctx.fillRect(tx, wy, b.w, 3);
+    ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(tx, wy+wallH-2, b.w, 2);
+    if (southDoor) {
+      // door set into the wall face
+      ctx.fillStyle='#1e140a'; ctx.fillRect(dx-13, wy+wallH-28, 26, 28);
+      ctx.fillStyle='#2e2012'; ctx.fillRect(dx-15, wy+wallH-32, 30, 5);   // lintel
+      // small windows flanking wider storefronts
+      if (b.w >= 200) {
+        ctx.fillStyle='rgba(255,220,140,0.18)';
+        ctx.fillRect(tx+b.w*0.18-8, wy+8, 16, 12); ctx.fillRect(tx+b.w*0.82-8, wy+8, 16, 12);
+        ctx.strokeStyle='#241808'; ctx.lineWidth=2;
+        ctx.strokeRect(tx+b.w*0.18-8, wy+8, 16, 12); ctx.strokeRect(tx+b.w*0.82-8, wy+8, 16, 12);
+      }
+    } else {
+      // north-door building: recessed entry notch on the roof's north edge
+      ctx.fillStyle='#1e140a'; ctx.fillRect(dx-13, ty, 26, 13);
+      ctx.fillStyle='#2e2012'; ctx.fillRect(dx-15, ty+13, 30, 4);        // doorstep
+    }
+  } else {
+    // legacy flat door
+    ctx.fillStyle='#1e140a'; ctx.fillRect(dx-13, dy-30, 26, 32);
+    ctx.fillStyle='#2e2012'; ctx.fillRect(dx-15, dy-34, 30, 6);
+  }
   // Sign
   ctx.fillStyle='rgba(0,0,0,0.55)';
-  const labelW = ctx.measureText(b.name).width;
   ctx.font='bold 15px Georgia'; ctx.textAlign='center';
   const lw = ctx.measureText(b.name).width + 16;
   ctx.fillRect(tx+b.w/2 - lw/2, ty+20, lw, 22);
@@ -432,9 +479,14 @@ function drawChest(tx, ty, open) {
 }
 
 // Big standing structures: bone arch span, mine entrance, shrine totem.
-function drawLandmarkStructures(ox, oy) {
+function drawLandmarkStructures(ox, oy) {  // legacy unsorted path (DEPTH_SORT off)
   for (const lm of LANDMARKS) {
     if (!onScreen(lm.x,lm.y,200)) continue;
+    drawLandmarkStructure(lm, ox, oy);
+  }
+}
+function drawLandmarkStructure(lm, ox, oy) {
+  {
     const tx=lm.x-ox, ty=lm.y-oy;
     if (lm.type==='arch') {
       // span of bone between the two leg props
@@ -503,9 +555,14 @@ function drawLandmarkStructures(ox, oy) {
 }
 
 // Town clutter + desert solids — shaded for a hand-drawn, readable look.
-function drawProps(ox, oy) {
+function drawProps(ox, oy) {          // legacy unsorted path (DEPTH_SORT off)
   for (const p of PROPS) {
     if (!onScreen(p.x,p.y,46)) continue;
+    drawProp(p, ox, oy);
+  }
+}
+function drawProp(p, ox, oy) {
+  {
     const tx=p.x-ox, ty=p.y-oy;
     // soft contact shadow
     ctx.fillStyle='rgba(0,0,0,0.22)';
@@ -608,6 +665,7 @@ function drawProps(ox, oy) {
     }
   }
 }
+
 
 function drawWantedBoard(ox, oy) {
   const b=WANTED_BOARD; if (!onScreen(b.x,b.y,60)) return;
