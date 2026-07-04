@@ -23,8 +23,10 @@ const CHRIS_MANIFEST = {
     dash:    { file: 'chris_dash.png',    framesPerDirection: 4, frameDurationMs: 45,  loop: true,  fallback: 'walk' },
     // Not authored yet — falls back until a dedicated sheet exists.
     hurt:    { file: 'chris_hurt.png',    framesPerDirection: 1, frameDurationMs: 120, loop: true,  fallback: 'idle' },
-    // mounted fallback:null => keep drawing the existing procedural horse+rider.
-    mounted: { file: 'chris_mounted.png', framesPerDirection: 1, frameDurationMs: 150, loop: true,  fallback: null  },
+    // mounted = horse + rider combined in one cell (hooves on the y=108 baseline).
+    // scaleMul sizes it against the old procedural horse (~76px long on screen).
+    // fallback:null => if the sheet is missing, keep the procedural horse+rider.
+    mounted: { file: 'chris_mounted.png', framesPerDirection: 1, frameDurationMs: 150, loop: true,  fallback: null, scaleMul: 1.4 },
   },
   fallbackAnimation: 'idle',
 };

@@ -489,11 +489,9 @@ class Player {
       ctx.beginPath(); ctx.ellipse(t.x-ox, t.y-oy, 12, 14, 0, 0, TAU); ctx.fill();
     }
     ctx.globalAlpha = 1;
-    // Shadow
+    // Shadow (wider under the horse when mounted)
     ctx.fillStyle='rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(tx, ty+12, 16, 7, 0, 0, TAU); ctx.fill();
-
-    if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
+    ctx.beginPath(); ctx.ellipse(tx, ty+12, this.mounted?26:16, this.mounted?9:7, 0, 0, TAU); ctx.fill();
 
     // M6: dash speed-lines — cartoon smear streaks trailing the burst.
     if (CFG.FX_IMPACT && this.dashTimer > 0 && !this.mounted) {
@@ -515,14 +513,16 @@ class Player {
       }
     }
 
-    // Character art: sprite pipeline when enabled/ready/on-foot, else procedural fallback.
+    // Character art: sprite pipeline when enabled/ready (the mounted sheet is
+    // horse+rider in one), else procedural horse body + gunslinger fallback.
     let drew = false;
-    if (CFG.USE_SPRITES && typeof ChrisSprites !== 'undefined' && ChrisSprites.ready && !this.mounted) {
+    if (CFG.USE_SPRITES && typeof ChrisSprites !== 'undefined' && ChrisSprites.ready) {
       if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;  // dash i-frame flicker
       drew = drawChrisSprite(ctx, this, ox, oy);
       ctx.globalAlpha = 1;
     }
     if (!drew) {
+      if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
       // Flicker while invulnerable (skip some frames) so the dodge reads visually.
       if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;
       drawGunslinger(ctx, tx, ty, this.aim, this.recoil, this.walkCycle,
