@@ -27,8 +27,9 @@ the world renders in 2:1 Diablo projection (`ISO` in config.js): ground/decals s
 through a canvas transform, everything upright billboards at its projected point,
 WASD + mouse aim remapped (gameplay coords untouched). Map edge fades to desert (no wall).
 Iso building art pipeline live (`ISO_BUILDING_ART` in sprites.js: per-building
-anchorX/anchorY/footScale). **1/8 buildings in: saloon** (calibrated 0.49/0.66/0.82).
-Remaining 7 still placeholder diamonds — generate per `docs/ISO_BUILDING_SPEC.md`.
+anchorX/anchorY/footScale). **6/8 buildings in: saloon, bank, sheriff, store,
+undertaker, stable.** Remaining: chapel, tent (still placeholder diamonds) —
+generate per `docs/ISO_BUILDING_SPEC.md`.
 
 **Next after that →** demon-arc finale (Darryl's "Benny was a symptom" hook is live).
 **The sprite set is COMPLETE** — all sheets in.

@@ -247,6 +247,8 @@ const ISO_BUILDING_ART = {
   bank:   { file: 'iso_bank.png',   anchorX: 0.50, anchorY: 0.62, footScale: 0.92 },
   sheriff:{ file: 'iso_sheriff.png',anchorX: 0.50, anchorY: 0.57, footScale: 0.92 },
   store:  { file: 'iso_store.png',  anchorX: 0.50, anchorY: 0.58, footScale: 0.90 },
+  undertaker: { file: 'iso_undertaker.png', anchorX: 0.50, anchorY: 0.57, footScale: 0.90 },
+  stable: { file: 'iso_stable.png', anchorX: 0.50, anchorY: 0.55, footScale: 0.92 },
 };
 const IsoBuildings = {
   loaded: {},   // key -> HTMLImageElement
