@@ -174,6 +174,62 @@ function drawChrisSprite(ctx, player, ox, oy) {
   return true;
 }
 
+/* ---- Horse controller (standalone idle horse sprite) ---------------------
+   Riderless horse only — the mounted horse+rider combo is chris_mounted.png,
+   owned by ChrisSprites. Single static frame per direction, so no animator
+   needed, just a loader + anchored draw. */
+const HorseSprites = {
+  ready: false,
+  ink: null,
+  async load() {
+    if (!CFG.USE_SPRITES) return;
+    const m = HORSE_MANIFEST, def = m.animations.idle;
+    const img = await Assets.loadImage('horse_idle', m.basePath + def.file);
+    if (img && CFG.FX_OUTLINE) {
+      const cv = document.createElement('canvas');
+      cv.width = img.width; cv.height = img.height;
+      const c = cv.getContext('2d');
+      c.drawImage(img, 0, 0);
+      c.globalCompositeOperation = 'source-in';
+      c.fillStyle = '#1a120a';
+      c.fillRect(0, 0, cv.width, cv.height);
+      this.ink = cv;
+    }
+    this.ready = true;
+  },
+};
+
+/* ---- Anchored renderer for the standalone horse (RE-ART-007 analog) ------
+   Returns false if there's no image (caller then draws the procedural horse). */
+function drawHorseSprite(ctx, horse, ox, oy) {
+  const img = Assets.getImage('horse_idle');
+  if (!img) return false;
+  const m = HORSE_MANIFEST;
+  // Ground shadow (the procedural horse bakes one into renderBody).
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(horse.x - ox, horse.y - oy + 8, 26, 11, 0, 0, TAU); ctx.fill();
+  const dirName = vectorTo8DirName(Math.cos(horse.aim), Math.sin(horse.aim));
+  const dirIdx = Math.max(0, m.directions.indexOf(dirName));
+  const scale = CFG.SPRITE_DRAW_SCALE * (m.animations.idle.scaleMul || 1);
+  const anchor = m.anchor;
+  const sx = 0, sy = dirIdx * m.frameHeight;
+  const dx = (horse.x - ox) - anchor.x * scale;
+  const dy = (horse.y - oy) - anchor.y * scale;
+  const prev = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = true;
+  if (CFG.FX_OUTLINE && HorseSprites.ink) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      ctx.drawImage(HorseSprites.ink, sx, sy, m.frameWidth, m.frameHeight,
+                    dx+ix, dy+iy, m.frameWidth*scale, m.frameHeight*scale);
+    }
+    ctx.restore();
+  }
+  ctx.drawImage(img, sx, sy, m.frameWidth, m.frameHeight, dx, dy, m.frameWidth*scale, m.frameHeight*scale);
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
 /* ---- Debug overlay (RE-ART-014) — off by default ------------------------ */
 function drawSpriteDebug(ctx, player, ox, oy) {
   const a = ChrisSprites.animator; if (!a) return;

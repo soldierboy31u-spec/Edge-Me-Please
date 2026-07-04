@@ -24,8 +24,10 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 
 **Next up →** pick from the Idea Parking Lot (demon-arc finale is the natural M7 —
 Darryl's "Benny was a symptom" hook is live). Remaining art (optional): the hurt sheet only.
-*(Sprite status: idle + walk + shoot + dash + mounted IN, `USE_SPRITES` ON. Mounted =
-horse+rider in one 128px cell, scaleMul 1.4; unridden horses stay procedural.)*
+*(Sprite status: idle + walk + shoot + dash + mounted + horse-idle IN, `USE_SPRITES` ON.
+Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
+`horse_idle.png` (1f/dir, `game/horse-manifest.js`, scaleMul 1.4 to match mounted) with
+the procedural horse as fallback.)*
 
 ---
 

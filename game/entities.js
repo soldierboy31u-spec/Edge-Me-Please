@@ -993,6 +993,8 @@ class Horse {
   render(ctx,ox,oy){ // standalone idle horse
     if (this.ridden) return;
     const tx=this.x-ox, ty=this.y-oy;
+    // Sprite sheet when available (engine still draws the ground shadow).
+    if (CFG.USE_SPRITES && drawHorseSprite(ctx, this, ox, oy)) return;
     this.renderBody(ctx,tx,ty);
     // Saddle marker
     ctx.fillStyle='#6a4a28';

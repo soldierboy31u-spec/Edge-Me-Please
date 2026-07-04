@@ -67,6 +67,7 @@ function fit() {
 addEventListener('resize', fit);
 
 ChrisSprites.init();   // sets up the animator; loads sheets only if USE_SPRITES is on
+HorseSprites.load();   // standalone horse idle sheet (procedural fallback if missing)
 Game.init();
 fit();
 requestAnimationFrame(loop);
