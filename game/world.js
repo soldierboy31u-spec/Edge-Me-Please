@@ -19,7 +19,7 @@ const BUILDINGS = [
     door:{x:TOWN_CX+210,y:TOWN_CY-112}, action:'sheriff', label:'Pay off your bounty' },
   { name: 'Lucky Tooth Store',     x: TOWN_CX-300, y: TOWN_CY+120, w: 250, h: 190, color:'#54402a',
     door:{x:TOWN_CX-175,y:TOWN_CY+118}, action:'store', label:'Buy ammo (6 for $5)' },
-  { name: 'Hicksville Bank',       x: TOWN_CX+140, y: TOWN_CY+150, w: 210, h: 165, color:'#494033',
+  { name: 'Hicksville Bank',       x: TOWN_CX+140, y: TOWN_CY+150, w: 210, h: 165, color:'#494033', iso:'bank',
     door:{x:TOWN_CX+245,y:TOWN_CY+148}, action:'bank', label:'Crack the safe (raises hell)' },
   { name: 'Undertaker & Taxidermy',x: TOWN_CX+430, y: TOWN_CY-260, w: 190, h: 160, color:'#3f3322',
     door:{x:TOWN_CX+525,y:TOWN_CY-104}, action:'lockdoor', label:'Pick the lock' },

@@ -244,6 +244,7 @@ function drawHorseSprite(ctx, horse, ox, oy) {
                        footprint width (w+h)*ISO_XS  */
 const ISO_BUILDING_ART = {
   saloon: { file: 'iso_saloon.png', anchorX: 0.49, anchorY: 0.66, footScale: 0.82 },
+  bank:   { file: 'iso_bank.png',   anchorX: 0.50, anchorY: 0.62, footScale: 0.92 },
 };
 const IsoBuildings = {
   loaded: {},   // key -> HTMLImageElement
