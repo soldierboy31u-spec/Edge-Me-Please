@@ -15,7 +15,7 @@ const CAMP_CX = 760,  CAMP_CY = 2120;   // Darryl's outlaw camp (home base, SW o
 const BUILDINGS = [
   { name: 'The Leaning Saloon',    x: TOWN_CX-330, y: TOWN_CY-300, w: 280, h: 200, color:'#5a3d22', lean:0.04, iso:'saloon',
     door:{x:TOWN_CX-190,y:TOWN_CY-92}, action:'rest',  label:'Wet your whistle & heal ($10)' },
-  { name: "Sheriff Crook's Office",x: TOWN_CX+90,  y: TOWN_CY-300, w: 240, h: 180, color:'#4a3320',
+  { name: "Sheriff Crook's Office",x: TOWN_CX+90,  y: TOWN_CY-300, w: 240, h: 180, color:'#4a3320', iso:'sheriff',
     door:{x:TOWN_CX+210,y:TOWN_CY-112}, action:'sheriff', label:'Pay off your bounty' },
   { name: 'Lucky Tooth Store',     x: TOWN_CX-300, y: TOWN_CY+120, w: 250, h: 190, color:'#54402a',
     door:{x:TOWN_CX-175,y:TOWN_CY+118}, action:'store', label:'Buy ammo (6 for $5)' },
