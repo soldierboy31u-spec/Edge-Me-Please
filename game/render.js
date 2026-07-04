@@ -301,9 +301,28 @@ function drawGroundIso() {
   ctx.fillStyle='rgba(150,124,80,0.35)';
   ctx.fillRect(TOWN_CX-70, 0, 140, CFG.WORLD_H);
   ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
-  // World border
-  ctx.strokeStyle='rgba(30,22,12,0.8)'; ctx.lineWidth=8;
-  ctx.strokeRect(0, 0, CFG.WORLD_W, CFG.WORLD_H);
+  // No hard border wall: the desert stretches past the playfield and
+  // gradually dissolves into darkness (the invisible clamp still stops you).
+  const F = 900, W = CFG.WORLD_W, H = CFG.WORLD_H;
+  const edges = [
+    [0, 0, -F, 0,  -F, -F, F, H + 2*F],   // west band
+    [W, 0, W+F, 0,  W, -F, F, H + 2*F],   // east band
+    [0, 0, 0, -F,  -F, -F, W + 2*F, F],   // north band
+    [0, H, 0, H+F, -F, H,  W + 2*F, F],   // south band
+  ];
+  for (const [gx0,gy0,gx1,gy1, rx,ry,rw,rh] of edges) {
+    const eg = ctx.createLinearGradient(gx0,gy0,gx1,gy1);
+    eg.addColorStop(0, 'rgba(20,14,6,0)');
+    eg.addColorStop(1, 'rgba(20,14,6,0.96)');
+    ctx.fillStyle = eg;
+    ctx.fillRect(rx, ry, rw, rh);
+  }
+  // solid dark beyond the fade so nothing pops at extreme camera positions
+  ctx.fillStyle = 'rgba(20,14,6,0.96)';
+  if (v.minX < -F) ctx.fillRect(v.minX, v.minY, -F - v.minX, v.maxY - v.minY);
+  if (v.maxX > W+F) ctx.fillRect(W+F, v.minY, v.maxX - (W+F), v.maxY - v.minY);
+  if (v.minY < -F) ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, -F - v.minY);
+  if (v.maxY > H+F) ctx.fillRect(v.minX, H+F, v.maxX - v.minX, v.maxY - (H+F));
   ctx.restore();
 }
 
