@@ -8,7 +8,7 @@
    Buildings have a footprint rect (solid) and a door point for interaction.
    --------------------------------------------------------------------------- */
 const TOWN_CX = 1500, TOWN_CY = 1500;   // Hicksville town centre
-const CAMP_CX = 760,  CAMP_CY = 2120;   // Darryl's outlaw camp (home base, SW of town)
+const CAMP_CX = 3350, CAMP_CY = 3350;   // Darryl's outlaw camp — far SE, deep in the haunted desert (a real ride from town)
 
 // HICKSVILLE — a crooked frontier town pretending to be respectable.
 // Landmarks drawn from the design bible. `action` drives the [E] interaction.
@@ -56,6 +56,8 @@ function generateScenery() {
     if (Math.abs(x - TOWN_CX) < 460 && Math.abs(y - TOWN_CY) < 460) {
       if (Math.random() < 0.7) continue;
     }
+    // Keep Darryl's camp clearing free of solid scenery (tent/fire/horse live here).
+    if (Math.abs(x - CAMP_CX) < 380 && Math.abs(y - CAMP_CY) < 380) continue;
     const t = types[randInt(0, types.length - 1)];
     const r = t === 'tree' ? rand(26, 40) : t === 'rock' ? rand(16, 30) : t === 'cactus' ? rand(14, 22) : rand(12, 18);
     SCENERY.push({ type: t, x, y, r, seed: Math.random() * 1000, solid: t !== 'shrub' });
