@@ -31,7 +31,7 @@ const BUILDINGS = [
 
 // Darryl's camp buildings — the player's home base, separate from judgemental Hicksville.
 const CAMP = [
-  { name: "Darryl's Tent", x: CAMP_CX-90, y: CAMP_CY-70, w: 180, h: 130, color:'#4a3a24', tent:true,
+  { name: "Darryl's Tent", x: CAMP_CX-90, y: CAMP_CY-70, w: 180, h: 130, color:'#4a3a24', tent:true, iso:'tent',
     door:{x:CAMP_CX, y:CAMP_CY+62}, action:'camp', label:"Rest at camp — full heal & ammo" },
 ];
 

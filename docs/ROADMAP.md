@@ -22,14 +22,14 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 5 — Boss Slice: ✅ DONE** (Mission IV: Buckshot Benny at the Rattlebone hideout, 3-phase fight)
 **Milestone 6 — Art Pass: ✅ DONE** (film grain/vignette/sepia, ink outlines, cartoon impacts, western HUD panels)
 **Milestone 7 — Depth Pass (Tier 1): ✅ DONE** (building south wall-faces + doors/windows, y-sorted world draw list — props/fences/entities occlude correctly; `DEPTH_*` in config.js)
-**Milestone 8 — Depth Pass (Tier 2, TRUE ISOMETRIC): 🔶 CODE DONE, ART IN PROGRESS** —
+**Milestone 8 — Depth Pass (Tier 2, TRUE ISOMETRIC): ✅ DONE** —
 the world renders in 2:1 Diablo projection (`ISO` in config.js): ground/decals squash
 through a canvas transform, everything upright billboards at its projected point,
 WASD + mouse aim remapped (gameplay coords untouched). Map edge fades to desert (no wall).
-Iso building art pipeline live (`ISO_BUILDING_ART` in sprites.js: per-building
-anchorX/anchorY/footScale). **7/8 buildings in: saloon, bank, sheriff, store,
-undertaker, stable, chapel.** Remaining: tent (still a placeholder diamond) —
-generate per `docs/ISO_BUILDING_SPEC.md`.
+**All 8 buildings are hand-drawn iso art** (saloon, bank, sheriff, store, undertaker,
+stable, chapel, tent) via `ISO_BUILDING_ART` in sprites.js (per-building
+anchorX/anchorY/footScale, calibrated live). Prompts + cleanup notes in
+`docs/ISO_BUILDING_SPEC.md`. Placeholder-diamond fallback stays for any untagged building.
 
 **Next after that →** demon-arc finale (Darryl's "Benny was a symptom" hook is live).
 **The sprite set is COMPLETE** — all sheets in.
@@ -152,6 +152,14 @@ A new *entity* → `entities.js`. New *tuning* → `config.js`. New *drawing* �
       `anchor`/`scaleMul` manifest overrides (lossless, no resample). `USE_SPRITES: true`,
       `SPRITE_DRAW_SCALE: 0.51`. Missing sheets fall back: aim→idle art, dash→walk,
       hurt→idle, mounted→procedural rider. STILL TO COME: aim (then dash/hurt/mounted).
+- [x] **M8 — Depth Pass (Tier 2, true isometric).** ✅ Render-layer 2:1 diamond projection
+      (`CFG.ISO`): `utils.js` W2S/S2W + iso vec/angle helpers (identity when off); ground,
+      decals, manhunt, fences drawn in world coords through a canvas iso transform;
+      everything upright billboards at its projected point, y-sorted by projected screen y.
+      WASD remapped (screen-up = world NW), mouse aim inverse-projected for bullets +
+      `aimScreen` for sprite facing/drawn gun. Map edge fades to desert (no wall). All 8
+      buildings hand-drawn iso PNGs (`assets/iso/buildings/`, `ISO_BUILDING_ART` manifest in
+      sprites.js). Gameplay/collision untouched; `CFG.ISO=false` reverts to the M7 top-down look.
 - [x] **M7 — Depth Pass (Tier 1).** ✅ Diablo-ish 3/4 depth without touching gameplay:
       buildings grew shaded **south wall-faces** (vertical siding, eave + contact shadows,
       door on the face for south-door buildings, recessed entry notch on the roof's north

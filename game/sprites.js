@@ -250,6 +250,8 @@ const ISO_BUILDING_ART = {
   undertaker: { file: 'iso_undertaker.png', anchorX: 0.50, anchorY: 0.57, footScale: 0.90 },
   stable: { file: 'iso_stable.png', anchorX: 0.50, anchorY: 0.55, footScale: 0.92 },
   chapel: { file: 'iso_chapel.png', anchorX: 0.48, anchorY: 0.71, footScale: 0.90 },
+  // wide guy-lines make the image span > tent body, so footScale runs high
+  tent:   { file: 'iso_tent.png',   anchorX: 0.42, anchorY: 0.66, footScale: 1.25 },
 };
 const IsoBuildings = {
   loaded: {},   // key -> HTMLImageElement
