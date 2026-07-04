@@ -235,6 +235,51 @@ function drawHorseSprite(ctx, horse, ox, oy) {
   return true;
 }
 
+/* ---- Iso building art (M8 Tier 2) ---------------------------------------
+   Generated iso PNGs (docs/ISO_BUILDING_SPEC.md) replace the placeholder
+   diamonds. Each entry anchors the art's ground-footprint centre onto the
+   projected centre of the building's collision rect.
+     anchorX/anchorY : 0..1 point in the image that sits on that screen point
+     footScale       : image draw-width as a multiple of the projected
+                       footprint width (w+h)*ISO_XS  */
+const ISO_BUILDING_ART = {
+  saloon: { file: 'iso_saloon.png', anchorX: 0.49, anchorY: 0.66, footScale: 0.82 },
+};
+const IsoBuildings = {
+  loaded: {},   // key -> HTMLImageElement
+  load() {
+    if (!CFG.ISO) return;
+    for (const [key, def] of Object.entries(ISO_BUILDING_ART)) {
+      Assets.loadImage('iso_' + key, 'assets/iso/buildings/' + def.file)
+        .then(img => { if (img) this.loaded[key] = img; });
+    }
+  },
+};
+// Draw a building's iso art if loaded; returns false so the caller falls back
+// to the placeholder diamond when the PNG isn't available yet.
+function drawIsoBuildingArt(b) {
+  if (!b.iso) return false;
+  const def = ISO_BUILDING_ART[b.iso];
+  const img = def && IsoBuildings.loaded[b.iso];
+  if (!def || !img) return false;
+  const footW = (b.w + b.h) * CFG.ISO_XS;             // projected diamond width
+  const drawW = footW * def.footScale;
+  const drawH = drawW * img.height / img.width;
+  const c = W2S(b.x + b.w/2, b.y + b.h/2);            // footprint centre on screen
+  const dx = c[0] - def.anchorX * drawW;
+  const dy = c[1] - def.anchorY * drawH;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+  ctx.imageSmoothingEnabled = prev;
+  // name sign floats just above the roof
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.font='bold 14px Georgia'; ctx.textAlign='center';
+  const lw = ctx.measureText(b.name).width + 14;
+  const sy = dy + drawH*0.14;
+  ctx.fillRect(c[0]-lw/2, sy-14, lw, 20);
+  ctx.fillStyle='#e8d5a8'; ctx.fillText(b.name, c[0], sy);
+  return true;
+}
+
 /* ---- Debug overlay (RE-ART-014) — off by default ------------------------ */
 function drawSpriteDebug(ctx, player, ox, oy) {
   const a = ChrisSprites.animator; if (!a) return;

@@ -68,6 +68,7 @@ addEventListener('resize', fit);
 
 ChrisSprites.init();   // sets up the animator; loads sheets only if USE_SPRITES is on
 HorseSprites.load();   // standalone horse idle sheet (procedural fallback if missing)
+IsoBuildings.load();   // M8 iso building art (placeholder diamonds until loaded)
 Game.init();
 fit();
 requestAnimationFrame(loop);

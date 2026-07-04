@@ -22,12 +22,13 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 5 — Boss Slice: ✅ DONE** (Mission IV: Buckshot Benny at the Rattlebone hideout, 3-phase fight)
 **Milestone 6 — Art Pass: ✅ DONE** (film grain/vignette/sepia, ink outlines, cartoon impacts, western HUD panels)
 **Milestone 7 — Depth Pass (Tier 1): ✅ DONE** (building south wall-faces + doors/windows, y-sorted world draw list — props/fences/entities occlude correctly; `DEPTH_*` in config.js)
-**Milestone 8 — Depth Pass (Tier 2, TRUE ISOMETRIC): 🔶 CODE DONE, ART PENDING** —
+**Milestone 8 — Depth Pass (Tier 2, TRUE ISOMETRIC): 🔶 CODE DONE, ART IN PROGRESS** —
 the world renders in 2:1 Diablo projection (`ISO` in config.js): ground/decals squash
 through a canvas transform, everything upright billboards at its projected point,
-WASD + mouse aim remapped (gameplay coords untouched). Buildings are code-drawn
-placeholder diamonds — **next: generate the 8 iso building PNGs per
-`docs/ISO_BUILDING_SPEC.md`** (start with the saloon to calibrate).
+WASD + mouse aim remapped (gameplay coords untouched). Map edge fades to desert (no wall).
+Iso building art pipeline live (`ISO_BUILDING_ART` in sprites.js: per-building
+anchorX/anchorY/footScale). **1/8 buildings in: saloon** (calibrated 0.49/0.66/0.82).
+Remaining 7 still placeholder diamonds — generate per `docs/ISO_BUILDING_SPEC.md`.
 
 **Next after that →** demon-arc finale (Darryl's "Benny was a symptom" hook is live).
 **The sprite set is COMPLETE** — all sheets in.

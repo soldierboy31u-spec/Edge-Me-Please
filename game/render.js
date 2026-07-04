@@ -330,6 +330,7 @@ function drawGroundIso() {
 // roof, drawn from the collision rect. Swapped for generated art per
 // docs/ISO_BUILDING_SPEC.md as the PNGs land.
 function drawBuildingIso(b) {
+  if (drawIsoBuildingArt(b)) return;   // generated art when available
   const H = CFG.ISO_WALL_H;
   const A=W2S(b.x,b.y), B=W2S(b.x+b.w,b.y), C=W2S(b.x+b.w,b.y+b.h), D=W2S(b.x,b.y+b.h);
   const up = p => [p[0], p[1]-H];
