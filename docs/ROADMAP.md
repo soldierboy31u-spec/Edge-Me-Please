@@ -23,11 +23,12 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 6 — Art Pass: ✅ DONE** (film grain/vignette/sepia, ink outlines, cartoon impacts, western HUD panels)
 
 **Next up →** pick from the Idea Parking Lot (demon-arc finale is the natural M7 —
-Darryl's "Benny was a symptom" hook is live). Remaining art (optional): the aim sheet only.
-*(Sprite status: idle + walk + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
+Darryl's "Benny was a symptom" hook is live). **The sprite set is COMPLETE** — all sheets in.
+*(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
 `horse_idle.png` (1f/dir, `game/horse-manifest.js`, scaleMul 1.4 to match mounted) with
-the procedural horse as fallback.)*
+the procedural horse as fallback. Every east-family row shipped mirrored — fixed via
+`docs/tools/fix_sheet.py` as usual.)*
 
 ---
 
