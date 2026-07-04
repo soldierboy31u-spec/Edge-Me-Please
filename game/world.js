@@ -38,9 +38,11 @@ const CAMP = [
 // Every solid + drawable structure. Collision / render / interaction iterate this.
 const STRUCTURES = BUILDINGS.concat(CAMP);
 
-// Darryl stands by the campfire. Non-combatant anchor NPC (design-bible camp leader).
-const DARRYL = { x: CAMP_CX+70, y: CAMP_CY+40, bob:0 };
-const CAMPFIRE = { x: CAMP_CX, y: CAMP_CY+40, flick:0 };
+// Darryl stands by the campfire, in the open SOUTH of the tent — both must
+// stay outside the tent footprint (y > CAMP_CY+60) or the iso/depth renderer
+// occludes them behind the tent.
+const DARRYL = { x: CAMP_CX+110, y: CAMP_CY+130, bob:0 };
+const CAMPFIRE = { x: CAMP_CX+30, y: CAMP_CY+150, flick:0 };
 
 // Scenery scatter (rocks, cacti, trees) — generated once at boot.
 let SCENERY = [];

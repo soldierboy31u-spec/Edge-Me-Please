@@ -11,8 +11,10 @@ const Camera = {
   shake: 0,
   follow(tx, ty, dt) {
     // Smooth critically-damped follow toward target centre.
-    const targetX = clamp(tx - CFG.VIEW_W / 2, 0, CFG.WORLD_W - CFG.VIEW_W);
-    const targetY = clamp(ty - CFG.VIEW_H / 2, 0, CFG.WORLD_H - CFG.VIEW_H);
+    // ISO: no world-rect clamping — the flat-view clamp box is meaningless
+    // under the diamond projection, so the camera just stays on the player.
+    const targetX = CFG.ISO ? tx - CFG.VIEW_W / 2 : clamp(tx - CFG.VIEW_W / 2, 0, CFG.WORLD_W - CFG.VIEW_W);
+    const targetY = CFG.ISO ? ty - CFG.VIEW_H / 2 : clamp(ty - CFG.VIEW_H / 2, 0, CFG.WORLD_H - CFG.VIEW_H);
     const k = 1 - Math.exp(-7 * dt);
     this.x = lerp(this.x, targetX, k);
     this.y = lerp(this.y, targetY, k);

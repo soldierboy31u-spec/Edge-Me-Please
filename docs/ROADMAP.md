@@ -22,10 +22,15 @@ bake-off. Don't cross the streams; this repo only contains Claude's version.
 **Milestone 5 — Boss Slice: ✅ DONE** (Mission IV: Buckshot Benny at the Rattlebone hideout, 3-phase fight)
 **Milestone 6 — Art Pass: ✅ DONE** (film grain/vignette/sepia, ink outlines, cartoon impacts, western HUD panels)
 **Milestone 7 — Depth Pass (Tier 1): ✅ DONE** (building south wall-faces + doors/windows, y-sorted world draw list — props/fences/entities occlude correctly; `DEPTH_*` in config.js)
+**Milestone 8 — Depth Pass (Tier 2, TRUE ISOMETRIC): 🔶 CODE DONE, ART PENDING** —
+the world renders in 2:1 Diablo projection (`ISO` in config.js): ground/decals squash
+through a canvas transform, everything upright billboards at its projected point,
+WASD + mouse aim remapped (gameplay coords untouched). Buildings are code-drawn
+placeholder diamonds — **next: generate the 8 iso building PNGs per
+`docs/ISO_BUILDING_SPEC.md`** (start with the saloon to calibrate).
 
-**Next up →** pick from the Idea Parking Lot (demon-arc finale is the natural M8 —
-Darryl's "Benny was a symptom" hook is live), or Depth Pass Tier 2 (true isometric
-diamond — big art lift, render-layer only). **The sprite set is COMPLETE** — all sheets in.
+**Next after that →** demon-arc finale (Darryl's "Benny was a symptom" hook is live).
+**The sprite set is COMPLETE** — all sheets in.
 *(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
 `horse_idle.png` (1f/dir, `game/horse-manifest.js`, scaleMul 1.4 to match mounted) with

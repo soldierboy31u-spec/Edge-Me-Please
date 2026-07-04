@@ -242,11 +242,14 @@ class Player {
   get accel() { return this.mounted ? CFG.HORSE_ACCEL : CFG.PLAYER_ACCEL; }
 
   update(dt) {
-    // --- Aim toward mouse (world-space) ---
-    const mwx = Input.mouse.x + Camera.x;
-    const mwy = Input.mouse.y + Camera.y;
-    this.aim = angTo(this.x, this.y, mwx, mwy);
-    if (Math.cos(this.aim) < 0) this.facing = -1; else this.facing = 1;
+    // --- Aim toward mouse (world-space; S2W handles the iso projection) ---
+    const [mwx, mwy] = S2W(Input.mouse.x, Input.mouse.y);
+    this.aim = angTo(this.x, this.y, mwx, mwy);       // world angle — bullets use this
+    // Screen-space aim angle — sprite facing + drawn gun use this so the art
+    // matches what the player sees (identical to .aim when ISO is off).
+    const [psx, psy] = W2S(this.x, this.y);
+    this.aimScreen = Math.atan2(Input.mouse.y - psy, Input.mouse.x - psx);
+    if (Math.cos(this.aimScreen) < 0) this.facing = -1; else this.facing = 1;
 
     // --- Movement input with acceleration & friction (weighty feel) ---
     let ix=0, iy=0;
@@ -257,9 +260,11 @@ class Player {
     const ilen = Math.hypot(ix, iy);
     const il = ilen || 1;
     ix/=il; iy/=il;
-    // Raw movement INPUT, kept separate from physics velocity — the sprite
-    // faces this instantly on keypress instead of waiting for momentum to decay.
+    // Raw movement INPUT in SCREEN space, kept separate from physics velocity —
+    // the sprite faces this instantly on keypress (sprite rows are screen dirs).
     this.moveX = ix; this.moveY = iy; this.moveLen = ilen;
+    // Physics moves in WORLD space: under iso, screen-up = world north-west etc.
+    if (ilen > 0) { const wv = isoWorldVec(ix, iy); ix = wv[0]; iy = wv[1]; }
 
     // --- Dash trigger (Shift) — on foot only; horse is already fast ---
     if (this.dashCool>0) this.dashCool -= dt;
@@ -365,8 +370,11 @@ class Player {
     // made him flip-flop ~3x/sec between run-facing and aim-facing.)
     // Standing still: face the mouse, with hysteresis so tiny cursor moves
     // near a 45° sector boundary can't strobe between adjacent rows.
-    if (this.dashTimer > 0) a.setDirection(vectorTo8DirName(this.dashDX, this.dashDY));
-    else if (moving) a.setDirection(vectorTo8DirName(this.moveX, this.moveY));
+    if (this.dashTimer > 0) {
+      const dv = isoScreenVec(this.dashDX, this.dashDY);   // dash dir is world-space
+      a.setDirection(vectorTo8DirName(dv[0], dv[1]));
+    }
+    else if (moving) a.setDirection(vectorTo8DirName(this.moveX, this.moveY));  // already screen-space
     else a.setDirection(this._aimDirWithHysteresis(a.dir));
     a.setAnimation(state);
     a.update(dt);
@@ -374,10 +382,12 @@ class Player {
 
   // 8-way facing from the mouse aim, but sticky: leave the current sector only
   // once the aim angle is ~8° past its edge. Kills idle flicker at boundaries.
+  // Uses the SCREEN-space aim angle so facing matches what the player sees.
   _aimDirWithHysteresis(cur) {
-    const cand = vectorTo8DirName(Math.cos(this.aim), Math.sin(this.aim));
+    const aim = this.aimScreen !== undefined ? this.aimScreen : this.aim;
+    const cand = vectorTo8DirName(Math.cos(aim), Math.sin(aim));
     if (!cur || cand === cur || DIR_ANGLE[cur] === undefined) return cand;
-    let d = Math.abs(this.aim - DIR_ANGLE[cur]);
+    let d = Math.abs(aim - DIR_ANGLE[cur]);
     if (d > Math.PI) d = TAU - d;
     return d > (Math.PI/8 + 0.14) ? cand : cur;   // 22.5° sector edge + 8° grace
   }
@@ -525,7 +535,7 @@ class Player {
       if (this.mounted) this.mounted.renderBody(ctx, tx, ty);
       // Flicker while invulnerable (skip some frames) so the dodge reads visually.
       if (this.invuln>0 && Math.floor(this.invuln*30)%2===0) ctx.globalAlpha = 0.5;
-      drawGunslinger(ctx, tx, ty, this.aim, this.recoil, this.walkCycle,
+      drawGunslinger(ctx, tx, ty, (this.aimScreen!==undefined?this.aimScreen:this.aim), this.recoil, this.walkCycle,
                      this.hurtFlash>0, this.mounted!=null);
       ctx.globalAlpha = 1;
     }

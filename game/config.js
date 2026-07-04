@@ -134,6 +134,11 @@ const CFG = {
   // --- M7 Depth Pass (Tier 1 "Diablo feel"): purely visual, collision untouched ---
   DEPTH_WALL_H: 30,          // building south wall-face height in px; 0 = flat pre-M7 look
   DEPTH_SORT: true,          // y-sort world objects so nearer things draw in front
+
+  // --- M8 Depth Pass Tier 2: true 2:1 isometric projection (render-layer only) ---
+  ISO: true,                 // master switch; false = M7 top-down look
+  ISO_XS: 0.85,              // horizontal projection scale (screenX = (x-y)*XS, screenY = (x+y)*XS/2)
+  ISO_WALL_H: 52,            // placeholder building wall height on screen (px)
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };

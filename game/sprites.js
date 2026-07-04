@@ -212,7 +212,8 @@ function drawHorseSprite(ctx, horse, ox, oy) {
   // Ground shadow (the procedural horse bakes one into renderBody).
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath(); ctx.ellipse(horse.x - ox, horse.y - oy + 8, 26, 11, 0, 0, TAU); ctx.fill();
-  const dirName = vectorTo8DirName(Math.cos(horse.aim), Math.sin(horse.aim));
+  const hv = isoScreenVec(Math.cos(horse.aim), Math.sin(horse.aim));   // aim is world-space
+  const dirName = vectorTo8DirName(hv[0], hv[1]);
   const dirIdx = Math.max(0, m.directions.indexOf(dirName));
   const scale = CFG.SPRITE_DRAW_SCALE * (m.animations.idle.scaleMul || 1);
   const anchor = m.anchor;

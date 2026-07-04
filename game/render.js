@@ -12,6 +12,78 @@ const ctx = canvas.getContext('2d');
 function render() {
   const ox = Camera.ox, oy = Camera.oy;
 
+  if (CFG.ISO) {
+    // --- M8 Tier 2: true isometric. Ground plane squashes through the iso
+    // transform; everything upright draws as a billboard at its projected
+    // point, y-sorted by projected screen y. Gameplay coords untouched.
+    computeIsoView();
+    drawGroundIso();
+    ctx.save();
+    isoTransform();
+    drawLandmarkGround(0, 0, true);   // world-coord draw under the transform; chests billboard below
+    drawManhunt(0, 0);
+    for (const f of FENCES) drawFence(f, 0, 0);
+    ctx.restore();
+
+    const D = [];
+    // billboard trick: fn(ctx, obj.x - sx, obj.y - sy) makes the object's own
+    // `x - ox` land exactly on its projected screen point.
+    const at = (x, y) => W2S(x, y);
+    for (const s of SCENERY) {
+      if (!onScreen(s.x, s.y, 80)) continue;
+      const p = at(s.x, s.y); D.push([p[1], () => drawScenery(s, s.x-p[0], s.y-p[1])]);
+    }
+    for (const b of STRUCTURES) {
+      const p = at(b.x + b.w, b.y + b.h);   // south corner = nearest point
+      D.push([p[1], () => drawBuildingIso(b)]);
+    }
+    for (const lm of LANDMARKS) {
+      if (!onScreen(lm.x, lm.y, 260)) continue;
+      const p = at(lm.x, lm.y); D.push([p[1], () => drawLandmarkStructure(lm, lm.x-p[0], lm.y-p[1])]);
+    }
+    for (const p0 of PROPS) {
+      if (!onScreen(p0.x, p0.y, 60)) continue;
+      const p = at(p0.x, p0.y); D.push([p[1] + p0.r*0.3, () => drawProp(p0, p0.x-p[0], p0.y-p[1])]);
+    }
+    for (const sc of SECRETS) {
+      if (!onScreen(sc.x, sc.y, 50)) continue;
+      const p = at(sc.x, sc.y); D.push([p[1], () => drawChest(p[0], p[1], sc.found)]);
+    }
+    { const b=WANTED_BOARD; const p = at(b.x, b.y); D.push([p[1]+16, () => drawWantedBoard(b.x-p[0], b.y-p[1])]); }
+    { const p = at(DARRYL.x, DARRYL.y); D.push([p[1]+11, () => drawDarryl(DARRYL.x-p[0], DARRYL.y-p[1])]); }
+    { const p = at(CAMPFIRE.x, CAMPFIRE.y); D.push([p[1], () => drawCampfire(CAMPFIRE.x-p[0], CAMPFIRE.y-p[1])]); }
+    for (const pk of Game.pickups) { const p = at(pk.x, pk.y); D.push([p[1]+6, () => pk.render(ctx, pk.x-p[0], pk.y-p[1])]); }
+    for (const h of Game.horses) if (!h.ridden) { const p = at(h.x, h.y); D.push([p[1]+12, () => h.render(ctx, h.x-p[0], h.y-p[1])]); }
+    for (const t of Game.townsfolk) { const p = at(t.x, t.y); D.push([p[1]+10, () => t.render(ctx, t.x-p[0], t.y-p[1])]); }
+    for (const e of Game.enemies) { const p = at(e.x, e.y); D.push([p[1]+10, () => e.render(ctx, e.x-p[0], e.y-p[1])]); }
+    if (!Game.player.dead || Game.state!==STATE.GAMEOVER) {
+      const pl = Game.player, p = at(pl.x, pl.y);
+      D.push([p[1] + CFG.SPRITE_FOOT_OFFSET, () => pl.render(ctx, pl.x-p[0], pl.y-p[1])]);
+    }
+    D.sort((a, b) => a[0] - b[0]);
+    for (const d of D) d[1]();
+
+    // airborne / effects above the sorted world, each at its projected point
+    for (const dy2 of Game.dynamites) { const p = at(dy2.x, dy2.y); dy2.render(ctx, dy2.x-p[0], dy2.y-p[1]); }
+    for (const b of Game.bullets)     { const p = at(b.x, b.y);     b.render(ctx, b.x-p[0], b.y-p[1]); }
+    for (const pt of Game.particles)  { const p = at(pt.x, pt.y);   pt.render(ctx, pt.x-p[0], pt.y-p[1]); }
+    for (const ex of Game.explosions) { const p = at(ex.x, ex.y);   ex.render(ctx, ex.x-p[0], ex.y-p[1]); }
+    for (const f of Game.floats)      { const p = at(f.x, f.y);     f.render(ctx, f.x-p[0], f.y-p[1]); }
+
+    drawMissionMarker(ox, oy);
+    drawReticle();
+    drawLightingTint();
+    drawDeadEye();
+    drawHUD();
+    drawMinimap();
+    drawTitleCard();
+    if (Game.state===STATE.START) drawStartScreen();
+    if (Game.state===STATE.PAUSE) drawPauseScreen();
+    if (Game.state===STATE.GAMEOVER) drawGameOver();
+    drawFilmFX();
+    return;
+  }
+
   // --- Ground ---
   drawGround(ox, oy);
 
@@ -185,6 +257,119 @@ function drawPanel(x, y, w, h) {
     ctx.beginPath(); ctx.arc(rx,ry,2.2,0,TAU); ctx.fill();
     ctx.fillStyle='#8a6a2a'; ctx.beginPath(); ctx.arc(rx+0.7,ry+0.7,1,0,TAU); ctx.fill();
     ctx.fillStyle='#caa14a';
+  }
+  ctx.restore();
+}
+
+/* ----- M8 Depth Pass Tier 2: iso projection plumbing ----- */
+// Visible world AABB under the iso camera (unprojected screen corners).
+let ISO_VIEW = null;
+function computeIsoView() {
+  const cs = [S2W(0,0), S2W(CFG.VIEW_W,0), S2W(0,CFG.VIEW_H), S2W(CFG.VIEW_W,CFG.VIEW_H)];
+  ISO_VIEW = {
+    minX: Math.min(cs[0][0],cs[1][0],cs[2][0],cs[3][0]),
+    maxX: Math.max(cs[0][0],cs[1][0],cs[2][0],cs[3][0]),
+    minY: Math.min(cs[0][1],cs[1][1],cs[2][1],cs[3][1]),
+    maxY: Math.max(cs[0][1],cs[1][1],cs[2][1],cs[3][1]),
+  };
+}
+// Set the canvas transform so drawing in WORLD coords lands iso-projected.
+function isoTransform() {
+  const XS = CFG.ISO_XS, o = W2S(0, 0);
+  ctx.setTransform(XS, XS*0.5, -XS, XS*0.5, o[0], o[1]);
+}
+
+// Iso ground: base wash in screen space, then patches/streets/border in
+// world coords under the iso transform (they squash into the diamond plane).
+function drawGroundIso() {
+  const g = ctx.createLinearGradient(0,0,0,CFG.VIEW_H);
+  g.addColorStop(0,'#5a4a30'); g.addColorStop(1,'#4a3c26');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  ctx.save();
+  isoTransform();
+  const T = CFG.TILE*2, v = ISO_VIEW;
+  const x0 = Math.floor(v.minX/T)*T, y0 = Math.floor(v.minY/T)*T;
+  for (let x=x0; x<v.maxX+T; x+=T) {
+    for (let y=y0; y<v.maxY+T; y+=T) {
+      const h = (Math.sin(x*0.013)+Math.cos(y*0.017))*0.5;
+      ctx.fillStyle = h>0 ? 'rgba(120,100,60,0.10)' : 'rgba(60,48,28,0.12)';
+      ctx.fillRect(x, y, T, T);
+    }
+  }
+  // Main street
+  ctx.fillStyle='rgba(150,124,80,0.35)';
+  ctx.fillRect(TOWN_CX-70, 0, 140, CFG.WORLD_H);
+  ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
+  // World border
+  ctx.strokeStyle='rgba(30,22,12,0.8)'; ctx.lineWidth=8;
+  ctx.strokeRect(0, 0, CFG.WORLD_W, CFG.WORLD_H);
+  ctx.restore();
+}
+
+// Placeholder iso building: footprint diamond + two upright faces + flat
+// roof, drawn from the collision rect. Swapped for generated art per
+// docs/ISO_BUILDING_SPEC.md as the PNGs land.
+function drawBuildingIso(b) {
+  const H = CFG.ISO_WALL_H;
+  const A=W2S(b.x,b.y), B=W2S(b.x+b.w,b.y), C=W2S(b.x+b.w,b.y+b.h), D=W2S(b.x,b.y+b.h);
+  const up = p => [p[0], p[1]-H];
+  const uA=up(A), uB=up(B), uC=up(C), uD=up(D);
+  const poly = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath(); };
+  ctx.save();
+  // drop shadow on the ground, cast north-east (light from SW)
+  poly([A,B,C,D].map(p=>[p[0]+10,p[1]-4])); ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.fill();
+  // south-west face (lit)
+  poly([D,C,uC,uD]); ctx.fillStyle=b.color; ctx.fill();
+  poly([D,C,uC,uD]); ctx.fillStyle='rgba(255,225,170,0.14)'; ctx.fill();
+  // south-east face (shaded)
+  poly([C,B,uB,uC]); ctx.fillStyle=b.color; ctx.fill();
+  poly([C,B,uB,uC]); ctx.fillStyle='rgba(0,0,0,0.38)'; ctx.fill();
+  // vertical siding seams on the lit face
+  ctx.strokeStyle='rgba(0,0,0,0.22)'; ctx.lineWidth=1;
+  for (let t=0.12; t<1; t+=0.12) {
+    const bx0=lerp(D[0],C[0],t), by0=lerp(D[1],C[1],t);
+    ctx.beginPath(); ctx.moveTo(bx0,by0); ctx.lineTo(bx0,by0-H); ctx.stroke();
+  }
+  // roof
+  poly([uA,uB,uC,uD]); ctx.fillStyle=b.color; ctx.fill();
+  poly([uA,uB,uC,uD]); ctx.fillStyle='rgba(255,244,214,0.07)'; ctx.fill();
+  ctx.strokeStyle='rgba(20,12,4,0.5)'; ctx.lineWidth=2; poly([uA,uB,uC,uD]); ctx.stroke();
+  // roof planks parallel to the north edge
+  ctx.strokeStyle='rgba(0,0,0,0.16)'; ctx.lineWidth=1;
+  for (let t=0.15; t<1; t+=0.15) {
+    ctx.beginPath();
+    ctx.moveTo(lerp(uA[0],uD[0],t), lerp(uA[1],uD[1],t));
+    ctx.lineTo(lerp(uB[0],uC[0],t), lerp(uB[1],uC[1],t));
+    ctx.stroke();
+  }
+  // door
+  const t = clamp((b.door.x - b.x) / b.w, 0.08, 0.92);
+  if (b.door.y > b.y + b.h/2) {
+    const px=lerp(D[0],C[0],t), py=lerp(D[1],C[1],t);
+    ctx.fillStyle='#1e140a'; ctx.fillRect(px-10, py-28, 20, 28);
+    ctx.fillStyle='#2e2012'; ctx.fillRect(px-12, py-31, 24, 4);
+  } else {
+    const px=lerp(uA[0],uB[0],t), py=lerp(uA[1],uB[1],t);
+    ctx.fillStyle='#1e140a'; ctx.fillRect(px-9, py-2, 18, 10);
+  }
+  // sign on the roof
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.font='bold 14px Georgia'; ctx.textAlign='center';
+  const mx=(uA[0]+uC[0])/2, my=(uA[1]+uC[1])/2;
+  const lw = ctx.measureText(b.name).width + 14;
+  ctx.fillRect(mx-lw/2, my-12, lw, 20);
+  ctx.fillStyle='#e8d5a8'; ctx.fillText(b.name, mx, my+3);
+  // flourishes
+  if (b.cross) {
+    const cx=(uA[0]+uB[0])/2, cy=(uA[1]+uB[1])/2;
+    ctx.fillStyle='#2a2218';
+    ctx.fillRect(cx-3, cy-30, 6, 30); ctx.fillRect(cx-10, cy-22, 20, 5);
+  }
+  if (b.tent) {
+    ctx.fillStyle='#3a2c1a';
+    ctx.beginPath(); ctx.moveTo(uA[0],uA[1]); ctx.lineTo(mx, my-30); ctx.lineTo(uC[0],uC[1]);
+    ctx.closePath(); ctx.fill();
   }
   ctx.restore();
 }
@@ -386,10 +571,14 @@ function drawDarryl(ox, oy) {
 }
 
 /* ----- MILESTONE 2: overworld props & landmarks ----- */
-function onScreen(x,y,m){ const ox=Camera.x,oy=Camera.y; return !(x<ox-m||x>ox+CFG.VIEW_W+m||y<oy-m||y>oy+CFG.VIEW_H+m); }
+function onScreen(x,y,m){
+  if (CFG.ISO && ISO_VIEW) return !(x<ISO_VIEW.minX-m||x>ISO_VIEW.maxX+m||y<ISO_VIEW.minY-m||y>ISO_VIEW.maxY+m);
+  const ox=Camera.x,oy=Camera.y; return !(x<ox-m||x>ox+CFG.VIEW_W+m||y<oy-m||y>oy+CFG.VIEW_H+m);
+}
 
 // Ground-level decals: dry riverbed, ghost-lantern trail, shrine pad, cache mounds.
-function drawLandmarkGround(ox, oy) {
+// skipChests: the iso path billboards strongboxes instead (they're upright).
+function drawLandmarkGround(ox, oy, skipChests) {
   for (const lm of LANDMARKS) {
     if (lm.type==='riverbed') {
       // winding pale channel
@@ -433,6 +622,7 @@ function drawLandmarkGround(ox, oy) {
     }
   }
   // Treasure strongboxes — closed if not yet looted, lid-open once taken.
+  if (skipChests) return;
   for (const sc of SECRETS) {
     if (!onScreen(sc.x,sc.y,40)) continue;
     drawChest(sc.x-ox, sc.y-oy, sc.found);
@@ -698,8 +888,8 @@ function drawManhunt(ox, oy) {
   ctx.globalAlpha=0.10; ctx.fillStyle='#ffcf6a';
   for (const e of Game.enemies) {
     if (e.kind!=='lawman'||e.dead) continue;
+    if (!onScreen(e.x, e.y, CFG.ENEMY_VIEW)) continue;
     const tx=e.x-ox, ty=e.y-oy;
-    if (tx<-CFG.ENEMY_VIEW||tx>CFG.VIEW_W+CFG.ENEMY_VIEW||ty<-CFG.ENEMY_VIEW||ty>CFG.VIEW_H+CFG.ENEMY_VIEW) continue;
     ctx.beginPath(); ctx.moveTo(tx,ty);
     ctx.arc(tx,ty,CFG.ENEMY_VIEW*0.85, e.aim-0.42, e.aim+0.42); ctx.closePath(); ctx.fill();
   }
@@ -719,7 +909,7 @@ function drawDeadEye() {
   // Target rings on on-screen enemies
   for (const e of Game.enemies) {
     if (e.dead) continue;
-    const tx=e.x-ox, ty=e.y-oy;
+    const [tx, ty] = W2S(e.x, e.y);
     if (tx<-30||tx>CFG.VIEW_W+30||ty<-30||ty>CFG.VIEW_H+30) continue;
     ctx.strokeStyle='rgba(255,70,70,0.9)'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(tx,ty,e.r+8+2*Math.sin(Game.time*10),0,TAU); ctx.stroke();
@@ -735,7 +925,7 @@ function drawDeadEye() {
 function drawMissionMarker(ox, oy) {
   if (Game.state!==STATE.PLAY || !Missions.marker) return;
   const m = Missions.marker;
-  const tx = m.x-ox, ty = m.y-oy;
+  const [tx, ty] = W2S(m.x, m.y);   // identity offset when ISO off
   if (tx<-40||tx>CFG.VIEW_W+40||ty<-60||ty>CFG.VIEW_H+40) return;   // off-screen: minimap handles it
   // Don't crowd the player when standing on the objective.
   if (dist(Game.player.x, Game.player.y, m.x, m.y) < 70) return;
