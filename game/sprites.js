@@ -395,13 +395,22 @@ function drawDarrylSprite(ctx, tx, ty, bobY) {
      anchorX/anchorY : 0..1 point in the image that sits on that screen point
      footScale       : image draw-width as a multiple of the projected
                        footprint width (w+h)*ISO_XS  */
+// `sign` = the blank plaque on the facade, as fractions of the drawn art
+// (fx,fy = plate centre, fw = plate width, rot = text tilt to match the iso
+// face). When present the name is painted on the plate; else it floats above.
 const ISO_BUILDING_ART = {
-  saloon: { file: 'iso_saloon.png', anchorX: 0.49, anchorY: 0.66, footScale: 0.82 },
-  bank:   { file: 'iso_bank.png',   anchorX: 0.50, anchorY: 0.62, footScale: 0.92 },
-  sheriff:{ file: 'iso_sheriff.png',anchorX: 0.50, anchorY: 0.57, footScale: 0.92 },
-  store:  { file: 'iso_store.png',  anchorX: 0.50, anchorY: 0.58, footScale: 0.90 },
-  undertaker: { file: 'iso_undertaker.png', anchorX: 0.50, anchorY: 0.57, footScale: 0.90 },
-  stable: { file: 'iso_stable.png', anchorX: 0.50, anchorY: 0.55, footScale: 0.92 },
+  saloon: { file: 'iso_saloon.png', anchorX: 0.49, anchorY: 0.66, footScale: 0.82,
+            sign: { fx: 0.30, fy: 0.26, fw: 0.24, rot: 0.10 } },
+  bank:   { file: 'iso_bank.png',   anchorX: 0.50, anchorY: 0.62, footScale: 0.92,
+            sign: { fx: 0.33, fy: 0.44, fw: 0.30, rot: 0.16 } },
+  sheriff:{ file: 'iso_sheriff.png',anchorX: 0.50, anchorY: 0.57, footScale: 0.92,
+            sign: { fx: 0.28, fy: 0.34, fw: 0.30, rot: 0.24 } },
+  store:  { file: 'iso_store.png',  anchorX: 0.50, anchorY: 0.58, footScale: 0.90,
+            sign: { fx: 0.32, fy: 0.24, fw: 0.26, rot: 0.22 } },
+  undertaker: { file: 'iso_undertaker.png', anchorX: 0.50, anchorY: 0.57, footScale: 0.90,
+            sign: { fx: 0.25, fy: 0.36, fw: 0.26, rot: 0.24 } },
+  stable: { file: 'iso_stable.png', anchorX: 0.50, anchorY: 0.55, footScale: 0.92,
+            sign: { fx: 0.30, fy: 0.49, fw: 0.24, rot: 0.22 } },
   chapel: { file: 'iso_chapel.png', anchorX: 0.48, anchorY: 0.71, footScale: 0.90 },
   // wide guy-lines make the image span > tent body, so footScale runs high
   tent:   { file: 'iso_tent.png',   anchorX: 0.42, anchorY: 0.66, footScale: 1.25 },
@@ -432,12 +441,27 @@ function drawIsoBuildingArt(b) {
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
   ctx.drawImage(img, dx, dy, drawW, drawH);
   ctx.imageSmoothingEnabled = prev;
-  // name sign floats just above the roof
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.font='bold 14px Georgia'; ctx.textAlign='center';
-  const lw = ctx.measureText(b.name).width + 14;
-  const sy = dy + drawH*0.14;
-  ctx.fillRect(c[0]-lw/2, sy-14, lw, 20);
-  ctx.fillStyle='#e8d5a8'; ctx.fillText(b.name, c[0], sy);
+  if (def.sign) {
+    // Painted onto the facade plaque, tilted to sit on the iso face.
+    const s = def.sign;
+    const sx = dx + s.fx*drawW, sy = dy + s.fy*drawH, maxW = s.fw*drawW;
+    ctx.save();
+    ctx.translate(sx, sy); ctx.rotate(s.rot || 0);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    let fs = Math.round(drawH*0.052);
+    ctx.font = `bold ${fs}px Georgia`;
+    while (fs > 6 && ctx.measureText(b.name).width > maxW) { fs--; ctx.font = `bold ${fs}px Georgia`; }
+    ctx.fillStyle='rgba(240,225,195,0.35)'; ctx.fillText(b.name, 0, 1);   // faint emboss
+    ctx.fillStyle='#2e2012'; ctx.fillText(b.name, 0, 0);                  // carved ink
+    ctx.restore();
+  } else {
+    // name sign floats just above the roof (buildings without a plaque)
+    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.font='bold 14px Georgia'; ctx.textAlign='center';
+    const lw = ctx.measureText(b.name).width + 14;
+    const sy = dy + drawH*0.14;
+    ctx.fillRect(c[0]-lw/2, sy-14, lw, 20);
+    ctx.fillStyle='#e8d5a8'; ctx.fillText(b.name, c[0], sy);
+  }
   return true;
 }
 
