@@ -209,16 +209,65 @@ These are animation SHEETS, not single objects. Full contract in
 >
 > The character is DARRYL — a grizzled old camp prospector and mentor: weathered lined face, bushy grey beard, a battered wide-brim hat, a long dusty tan duster coat over suspenders and a work shirt, standing calmly with his hands resting near his belt. Kindly but tough, a survivor. Warm earthy browns.
 
-## Tier 3 — Terrain (different generation ask: seamless tiles / decals)
+## Tier 3 — Terrain (a DIFFERENT generation ask: flat top-down tiles & decals)
 
-- [ ] ART-20 — Seamless sand tile (top-down, edges must wrap)
-- [ ] ART-21 — Dirt road / wagon-rut decal strips
-- [ ] ART-22 — Ground decal pack (dry grass tufts, cracked-earth patches, rock scatter)
+Terrain is NOT like props/landmarks. It is flat **top-down** (camera straight
+down, NOT isometric), **evenly lit** (no south-west light, no cast shadows — a
+directional shadow baked into a tiling texture looks wrong repeated across the
+map), and either fully **opaque** (the sand tile IS the ground) or **transparent
+decals** that lay on top of the sand.
+
+- **Save folder:** `assets/iso/terrain/` — create it if it does not exist.
+- **No style reference needed** (these are textures, not objects). If you want a
+  palette anchor, glance at `assets/iso/buildings/iso_saloon.png` for the sepia
+  desert tones, but do NOT copy its isometric angle or lighting — terrain is flat
+  overhead.
+- **Seamless is hard for image models** — the wiring side runs an offset-and-heal
+  pass to remove any residual seam, so the artist just needs an EVEN texture with
+  no vignette, no border, and no single dominant feature. Getting it *close* to
+  tiling is enough.
+
+### [ ] ART-20 — Seamless sand ground tile → `assets/iso/terrain/ground_sand.png`
+> Target 512×512, FULLY OPAQUE (this is the ground itself — no transparency).
+>
+> A seamless TOP-DOWN ground texture for a video game — flat overhead view, camera looking straight down, NOT isometric. Even, flat, ambient lighting with NO directional light, NO cast shadows, NO vignette, and NO darkening toward the edges, so the tile can repeat cleanly. Hand-painted cartoon western style with subtle ink-fleck grain, warm sepia desert palette of dusty tans and light browns. The texture must TILE SEAMLESSLY on all four edges — the left edge continues into the right edge and the top edge into the bottom edge, with no seam, border, or frame. Fill the ENTIRE square edge to edge. NO single large feature, NO focal object, NO plants or props, NO text, letters, or numbers.
+>
+> The surface is dry DESERT SAND AND DIRT — fine sandy grain with a few small scattered pebbles, faint hairline cracks, and gentle tonal variation, sun-baked and dusty. Keep it subtle and even so it reads as quiet background ground when tiled across a large map.
+
+### [ ] ART-21 — Dirt road / wagon-rut strip → `assets/iso/terrain/decal_road.png`
+> Target ~384 wide × 512 tall, TRANSPARENT background (lays on top of the sand tile).
+>
+> A single TOP-DOWN ground DECAL for a video game — flat overhead view, straight down, NOT isometric, meant to lie flat on sandy ground. Even ambient lighting, NO directional light, NO cast shadow, NO vignette. Hand-painted cartoon western style, warm sepia desert palette. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO text, letters, or numbers.
+>
+> The decal is a DIRT ROAD with WAGON RUTS running vertically top-to-bottom — two parallel pressed wheel ruts in packed light-tan dirt, scattered hoof prints, pebbles and faint drag marks, the packed earth a bit lighter and smoother than loose desert sand. It must TILE VERTICALLY: the top edge continues seamlessly into the bottom edge so the road can repeat down a long street. The LEFT and RIGHT edges fade softly to transparent (no hard rectangle border) so the road blends onto the surrounding ground.
+
+### [ ] ART-22 — Ground decal pack (THREE files) → `assets/iso/terrain/decal_grass.png`, `assets/iso/terrain/decal_cracks.png`, `assets/iso/terrain/decal_pebbles.png`
+> Three separate small decals, each ~256×256, TRANSPARENT background, each a single
+> patch centered with soft faded edges (no hard border). Same flat top-down, evenly
+> lit, no-shadow rules as ART-21. Generate them one at a time.
+>
+> **Shared decal header** (use for all three):
+> A single TOP-DOWN ground DECAL for a video game — flat overhead view, straight down, NOT isometric, lying flat on sandy ground. Even ambient lighting, NO directional light, NO cast shadow, NO vignette. Hand-painted cartoon western style, warm sepia desert palette. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. The decal sits centered with soft edges fading to transparent — NO hard rectangle border. NO text, letters, or numbers.
+>
+> - `decal_grass.png` — the decal is a small clump of DRY DESERT GRASS TUFTS: a few sparse yellowed-green and tan blades sprouting from the dirt, seen from straight above, small and low.
+> - `decal_cracks.png` — the decal is a patch of CRACKED DRY EARTH: a roughly round area of parched, cracked mud with a jigsaw of thin dark cracks, slightly lighter and greyer than the surrounding sand, seen from straight above.
+> - `decal_pebbles.png` — the decal is a loose scatter of SMALL DESERT PEBBLES AND ROCKS: a cluster of little tan and grey stones of varied size resting on the ground, seen from straight above.
 
 ---
 
-## Delivered
+## Delivered & wired in
 
-- [x] iso_saloon, iso_bank, iso_sheriff, iso_store, iso_undertaker, iso_stable,
-      iso_chapel, iso_tent — all 8 M8 buildings
-- [x] bandit_idle + bandit_walk sheets (procedural bandits retired)
+- [x] **Buildings (8):** iso_saloon, iso_bank, iso_sheriff, iso_store,
+      iso_undertaker, iso_stable, iso_chapel, iso_tent
+- [x] **Tier 1 props (10):** cactus_saguaro, cactus_pricklypear, rocks, deadtree,
+      shrub, barrel, crate, trough, post, wagon → `assets/iso/props/`
+- [x] **Tier 2 landmarks (6):** bone_arch, mine_closed, mine_open, shrine, camp,
+      bone_throne → `assets/iso/landmarks/`
+- [x] **Characters:** bandit_idle + bandit_walk (procedural bandits retired)
+
+## Still open (ready for the artist / autonomous worker)
+
+- [ ] **Tier 2b characters:** ART-16 lawman, ART-17 enforcer, ART-18 bandit shoot,
+      ART-19 Darryl — prompts above, use the CHARACTER SHEET pipeline.
+- [ ] **Tier 3 terrain:** ART-20 sand tile, ART-21 road, ART-22 decal pack —
+      prompts above, flat top-down textures.
