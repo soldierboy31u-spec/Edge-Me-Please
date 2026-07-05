@@ -570,20 +570,25 @@ function drawDarryl(ox, oy) {
   const tx=DARRYL.x-ox, ty=DARRYL.y-oy;
   if (tx<-60||tx>CFG.VIEW_W+60||ty<-60||ty>CFG.VIEW_H+60) return;
   DARRYL.bob += 0.04;
-  ctx.save();
-  ctx.translate(tx, ty + Math.sin(DARRYL.bob)*1.2);
+  const bobY = Math.sin(DARRYL.bob)*1.2;
+  // ground shadow (drawn for both the sprite and the fallback)
   ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(0,11,12,5,0,0,TAU); ctx.fill();
-  ctx.fillStyle='#6a5236';                 // heavyset coat
-  ctx.beginPath(); ctx.ellipse(0,2,14,16,0,0,TAU); ctx.fill();
-  ctx.fillStyle='#caa078';                 // head
-  ctx.beginPath(); ctx.arc(0,-3,8,0,TAU); ctx.fill();
-  ctx.fillStyle='#cfc6b4';                 // grey beard
-  ctx.beginPath(); ctx.arc(0,1,6,0,Math.PI); ctx.fill();
-  ctx.fillStyle='#2a1d10';                 // wide hat
-  ctx.beginPath(); ctx.ellipse(0,-6,15,6,0,0,TAU); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(0,-9,8,6,0,0,TAU); ctx.fill();
-  ctx.restore();
+  ctx.beginPath(); ctx.ellipse(tx,ty+11,12,5,0,0,TAU); ctx.fill();
+  const drewSprite = typeof drawDarrylSprite !== 'undefined' && drawDarrylSprite(ctx, tx, ty, bobY);
+  if (!drewSprite) {
+    ctx.save();
+    ctx.translate(tx, ty + bobY);
+    ctx.fillStyle='#6a5236';                 // heavyset coat
+    ctx.beginPath(); ctx.ellipse(0,2,14,16,0,0,TAU); ctx.fill();
+    ctx.fillStyle='#caa078';                 // head
+    ctx.beginPath(); ctx.arc(0,-3,8,0,TAU); ctx.fill();
+    ctx.fillStyle='#cfc6b4';                 // grey beard
+    ctx.beginPath(); ctx.arc(0,1,6,0,Math.PI); ctx.fill();
+    ctx.fillStyle='#2a1d10';                 // wide hat
+    ctx.beginPath(); ctx.ellipse(0,-6,15,6,0,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,-9,8,6,0,0,TAU); ctx.fill();
+    ctx.restore();
+  }
   // Name tag
   ctx.fillStyle='rgba(20,14,6,0.7)'; ctx.font='11px Georgia'; ctx.textAlign='center';
   const w=ctx.measureText('DARRYL').width+10;

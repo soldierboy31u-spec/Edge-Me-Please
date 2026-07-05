@@ -71,7 +71,8 @@ HorseSprites.load();   // standalone horse idle sheet (procedural fallback if mi
 IsoBuildings.load();   // M8 iso building art (placeholder diamonds until loaded)
 IsoProps.load();       // Tier-1 prop art (procedural scenery until loaded)
 IsoLandmarks.load();   // Tier-2 landmark art (procedural landmarks until loaded)
-BanditSprites.load();  // bandit idle/walk sheets (procedural bandits until loaded)
+EnemySprites.load();   // bandit/lawman/enforcer sheets (procedural until loaded)
+DarrylSprite.load();   // camp NPC single-frame sprite (procedural until loaded)
 Game.init();
 fit();
 requestAnimationFrame(loop);

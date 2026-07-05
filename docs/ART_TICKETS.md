@@ -171,7 +171,7 @@ These are animation SHEETS, not single objects. Full contract in
 
 > **CHARACTER SHEET HEADER** (baked into each prompt below) — A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
 
-### [ ] ART-16 — Lawman (TWO sheets) → `assets/characters/lawman/lawman_idle.png` **and** `assets/characters/lawman/lawman_walk.png`
+### [x] ART-16 — Lawman (TWO sheets) → `assets/characters/lawman/lawman_idle.png` **and** `assets/characters/lawman/lawman_walk.png`
 > **IDLE** (`lawman_idle.png`, 4 columns × 8 rows = 512×1024) — attach `bandit_idle.png` as reference:
 > A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 4 columns. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
 >
@@ -182,7 +182,7 @@ These are animation SHEETS, not single objects. Full contract in
 >
 > The character is the SAME FRONTIER LAWMAN — lean gunman, dark navy-blue frock coat, silver five-point sheriff's star on the chest, tan flat-brim hat, holstered revolver, boots. The 8 frames are a full walk cycle: legs striding, coat and arms swinging naturally.
 
-### [ ] ART-17 — Enforcer (TWO sheets) → `assets/characters/enforcer/enforcer_idle.png` **and** `assets/characters/enforcer/enforcer_walk.png`
+### [x] ART-17 — Enforcer (TWO sheets) → `assets/characters/enforcer/enforcer_idle.png` **and** `assets/characters/enforcer/enforcer_walk.png`
 > **IDLE** (`enforcer_idle.png`, 4 columns × 8 rows = 512×1024) — attach `bandit_idle.png` as reference:
 > A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 4 columns. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
 >
@@ -193,14 +193,14 @@ These are animation SHEETS, not single objects. Full contract in
 >
 > The character is the SAME ENFORCER — big heavy-set brute, dark blood-red long coat, black hat, heavy boots, cut-down shotgun or heavy revolver. The 8 frames are a full walk cycle with a heavy, lumbering stride, shoulders rolling.
 
-### [ ] ART-18 — Bandit shoot sheet → `assets/characters/bandit/bandit_shoot.png`
+### [x] ART-18 — Bandit shoot sheet → `assets/characters/bandit/bandit_shoot.png`
 > Attach BOTH `assets/characters/bandit/bandit_idle.png` AND `assets/characters/bandit/bandit_walk.png` as reference so the SAME bandit character is preserved. Sheet is 3 columns × 8 rows = 384×1024.
 >
 > A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference bandit sheets — and it MUST be the SAME bandit character (same hat, bandana, coat, colors, proportions). Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME bandit turned to face that direction. Each COLUMN is one animation frame, left to right — this sheet has 3 columns forming a SHOOT action. Every cell is exactly 128×128 px, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO border — just the bandit on empty transparency in each cell.
 >
 > The 3 SHOOT frames per direction are: (1) revolver snapped up and aimed toward the facing direction, arm extended; (2) the shot — a small muzzle flash at the barrel and the arm kicking back from recoil; (3) settling back down, arm lowering slightly, smoke wisp. The gun always points in the row's facing direction.
 
-### [ ] ART-19 — Darryl standing sprite → `assets/characters/darryl/darryl_idle.png`
+### [x] ART-19 — Darryl standing sprite → `assets/characters/darryl/darryl_idle.png`
 > Darryl is a stationary camp NPC who only ever faces the player, so this is NOT a
 > grid — just ONE single 128×128 figure. Attach `assets/characters/bandit/bandit_idle.png`
 > for the style.
@@ -227,21 +227,21 @@ decals** that lay on top of the sand.
   no vignette, no border, and no single dominant feature. Getting it *close* to
   tiling is enough.
 
-### [ ] ART-20 — Seamless sand ground tile → `assets/iso/terrain/ground_sand.png`
+### [x] ART-20 — Seamless sand ground tile → `assets/iso/terrain/ground_sand.png`
 > Target 512×512, FULLY OPAQUE (this is the ground itself — no transparency).
 >
 > A seamless TOP-DOWN ground texture for a video game — flat overhead view, camera looking straight down, NOT isometric. Even, flat, ambient lighting with NO directional light, NO cast shadows, NO vignette, and NO darkening toward the edges, so the tile can repeat cleanly. Hand-painted cartoon western style with subtle ink-fleck grain, warm sepia desert palette of dusty tans and light browns. The texture must TILE SEAMLESSLY on all four edges — the left edge continues into the right edge and the top edge into the bottom edge, with no seam, border, or frame. Fill the ENTIRE square edge to edge. NO single large feature, NO focal object, NO plants or props, NO text, letters, or numbers.
 >
 > The surface is dry DESERT SAND AND DIRT — fine sandy grain with a few small scattered pebbles, faint hairline cracks, and gentle tonal variation, sun-baked and dusty. Keep it subtle and even so it reads as quiet background ground when tiled across a large map.
 
-### [ ] ART-21 — Dirt road / wagon-rut strip → `assets/iso/terrain/decal_road.png`
+### [x] ART-21 — Dirt road / wagon-rut strip → `assets/iso/terrain/decal_road.png`
 > Target ~384 wide × 512 tall, TRANSPARENT background (lays on top of the sand tile).
 >
 > A single TOP-DOWN ground DECAL for a video game — flat overhead view, straight down, NOT isometric, meant to lie flat on sandy ground. Even ambient lighting, NO directional light, NO cast shadow, NO vignette. Hand-painted cartoon western style, warm sepia desert palette. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO text, letters, or numbers.
 >
 > The decal is a DIRT ROAD with WAGON RUTS running vertically top-to-bottom — two parallel pressed wheel ruts in packed light-tan dirt, scattered hoof prints, pebbles and faint drag marks, the packed earth a bit lighter and smoother than loose desert sand. It must TILE VERTICALLY: the top edge continues seamlessly into the bottom edge so the road can repeat down a long street. The LEFT and RIGHT edges fade softly to transparent (no hard rectangle border) so the road blends onto the surrounding ground.
 
-### [ ] ART-22 — Ground decal pack (THREE files) → `assets/iso/terrain/decal_grass.png`, `assets/iso/terrain/decal_cracks.png`, `assets/iso/terrain/decal_pebbles.png`
+### [x] ART-22 — Ground decal pack (THREE files) → `assets/iso/terrain/decal_grass.png`, `assets/iso/terrain/decal_cracks.png`, `assets/iso/terrain/decal_pebbles.png`
 > Three separate small decals, each ~256×256, TRANSPARENT background, each a single
 > patch centered with soft faded edges (no hard border). Same flat top-down, evenly
 > lit, no-shadow rules as ART-21. Generate them one at a time.
@@ -265,9 +265,9 @@ decals** that lay on top of the sand.
       bone_throne → `assets/iso/landmarks/`
 - [x] **Characters:** bandit_idle + bandit_walk (procedural bandits retired)
 
-## Still open (ready for the artist / autonomous worker)
+## Completed backlog
 
-- [ ] **Tier 2b characters:** ART-16 lawman, ART-17 enforcer, ART-18 bandit shoot,
-      ART-19 Darryl — prompts above, use the CHARACTER SHEET pipeline.
-- [ ] **Tier 3 terrain:** ART-20 sand tile, ART-21 road, ART-22 decal pack —
-      prompts above, flat top-down textures.
+- [x] **Tier 2b characters:** ART-16 lawman, ART-17 enforcer, ART-18 bandit shoot,
+      ART-19 Darryl — delivered to `assets/characters/`.
+- [x] **Tier 3 terrain:** ART-20 sand tile, ART-21 road, ART-22 decal pack —
+      delivered to `assets/iso/terrain/`.

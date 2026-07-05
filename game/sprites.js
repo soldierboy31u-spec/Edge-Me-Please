@@ -239,22 +239,37 @@ function drawHorseSprite(ctx, horse, ox, oy) {
    Same 8-dir contract as Chris (docs/CHARACTER_SPRITE_SPEC.md). Used for
    kind==='bandit' only; enforcers/lawmen/boss stay procedural until they
    get their own sheets (see docs/ART_TICKETS.md). */
-const BANDIT_MANIFEST = {
+// Shared geometry for every humanoid enemy sheet (128px cells, 8 dir rows,
+// feet baseline y=108). Per-kind manifests below only vary the files + scale.
+const ENEMY_SHEET = {
   frameWidth: 128,
   frameHeight: 128,
   anchor: { x: 64, y: 108 },
-  basePath: 'assets/characters/bandit/',
   directions: ['south','southwest','west','northwest','north','northeast','east','southeast'],
-  animations: {
-    idle: { file: 'bandit_idle.png', framesPerDirection: 4, frameDurationMs: 190, loop: true },
-    walk: { file: 'bandit_walk.png', framesPerDirection: 8, frameDurationMs: 95,  loop: true, fallback: 'idle' },
-  },
   fallbackAnimation: 'idle',
 };
-const BanditSprites = {
-  ready: false,
-  ink: {},      // anim -> black silhouette sheet (M6 outlines)
-  red: {},      // anim -> red silhouette sheet (hurt flash tint)
+const ENEMY_MANIFESTS = {
+  bandit: { ...ENEMY_SHEET, scale: 0.88, basePath: 'assets/characters/bandit/', animations: {
+    idle:  { file: 'bandit_idle.png',  framesPerDirection: 4, frameDurationMs: 190, loop: true },
+    walk:  { file: 'bandit_walk.png',  framesPerDirection: 8, frameDurationMs: 95,  loop: true, fallback: 'idle' },
+    shoot: { file: 'bandit_shoot.png', framesPerDirection: 3, frameDurationMs: 60,  loop: false, fallback: 'idle' },
+  }},
+  lawman: { ...ENEMY_SHEET, scale: 0.95, basePath: 'assets/characters/lawman/', animations: {
+    idle:  { file: 'lawman_idle.png', framesPerDirection: 4, frameDurationMs: 190, loop: true },
+    walk:  { file: 'lawman_walk.png', framesPerDirection: 8, frameDurationMs: 95,  loop: true, fallback: 'idle' },
+  }},
+  enforcer: { ...ENEMY_SHEET, scale: 1.06, basePath: 'assets/characters/enforcer/', animations: {
+    idle:  { file: 'enforcer_idle.png', framesPerDirection: 4, frameDurationMs: 210, loop: true },
+    walk:  { file: 'enforcer_walk.png', framesPerDirection: 8, frameDurationMs: 105, loop: true, fallback: 'idle' },
+  }},
+};
+// Back-compat: Enemy still news up a SpriteAnimator from a manifest reference.
+const BANDIT_MANIFEST = ENEMY_MANIFESTS.bandit;
+
+const EnemySprites = {
+  ready: {},    // kind -> bool (idle sheet loaded)
+  ink: {},      // 'kind_anim' -> black silhouette sheet (M6 outlines)
+  red: {},      // 'kind_anim' -> red silhouette sheet (hurt flash tint)
   _tint(img, color) {
     const cv = document.createElement('canvas');
     cv.width = img.width; cv.height = img.height;
@@ -267,39 +282,43 @@ const BanditSprites = {
   },
   load() {
     if (!CFG.USE_SPRITES) return;
-    const jobs = [];
-    for (const [name, def] of Object.entries(BANDIT_MANIFEST.animations)) {
-      jobs.push(Assets.loadImage('bandit_' + name, BANDIT_MANIFEST.basePath + def.file).then((img) => {
-        if (img) {
-          if (CFG.FX_OUTLINE) this.ink[name] = this._tint(img, '#1a120a');
-          this.red[name] = this._tint(img, '#e04030');
-        }
-      }));
+    for (const [kind, m] of Object.entries(ENEMY_MANIFESTS)) {
+      const jobs = [];
+      for (const [name, def] of Object.entries(m.animations)) {
+        const key = kind + '_' + name;
+        jobs.push(Assets.loadImage(key, m.basePath + def.file).then((img) => {
+          if (img) {
+            if (CFG.FX_OUTLINE) this.ink[key] = this._tint(img, '#1a120a');
+            this.red[key] = this._tint(img, '#e04030');
+          }
+        }));
+      }
+      Promise.all(jobs).then(() => {
+        this.ready[kind] = !!Assets.getImage(kind + '_idle');
+        if (this.ready[kind]) console.log('[sprites] ' + kind + ' sheets in');
+      });
     }
-    Promise.all(jobs).then(() => {
-      // Only flip on when the core idle sheet actually loaded.
-      this.ready = !!Assets.getImage('bandit_idle');
-      if (this.ready) console.log('[sprites] bandit sheets in — procedural bandits retired');
-    });
   },
 };
-// Draw an enemy's bandit sprite anchored at its feet. Returns false when the
-// sheets aren't in (caller falls back to the procedural drawBandit art).
-function drawBanditSprite(ctx, e, ox, oy) {
-  if (!BanditSprites.ready || !e.spriteAnim) return false;
-  const m = BANDIT_MANIFEST, a = e.spriteAnim;
-  let name = a.anim, def = m.animations[name], img = Assets.getImage('bandit_' + name);
-  if (!img) { name = 'idle'; def = m.animations.idle; img = Assets.getImage('bandit_idle'); }
+// Draw an enemy's sprite anchored at its feet, dispatched by e.kind. Returns
+// false when the sheets aren't in (caller falls back to procedural drawBandit).
+function drawEnemySprite(ctx, e, ox, oy) {
+  const m = ENEMY_MANIFESTS[e.kind];
+  if (!m || !EnemySprites.ready[e.kind] || !e.spriteAnim) return false;
+  const a = e.spriteAnim;
+  let name = a.anim, def = m.animations[name], img = Assets.getImage(e.kind + '_' + name);
+  if (!img || !def) { name = 'idle'; def = m.animations.idle; img = Assets.getImage(e.kind + '_idle'); }
   if (!img) return false;
-  const scale = CFG.SPRITE_DRAW_SCALE * 0.88;   // bandits read a touch smaller than Chris
+  const scale = CFG.SPRITE_DRAW_SCALE * (m.scale || 0.88);
   const dirIdx = Math.max(0, m.directions.indexOf(a.dir));
   const frame = Math.min(a.frame, def.framesPerDirection - 1);
   const sx = frame * m.frameWidth, sy = dirIdx * m.frameHeight;
   const dx = (e.x - ox) - m.anchor.x * scale;
   const dy = (e.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - m.anchor.y * scale;
+  const key = e.kind + '_' + name;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = true;
-  const inkCv = CFG.FX_OUTLINE && BanditSprites.ink[name];
+  const inkCv = CFG.FX_OUTLINE && EnemySprites.ink[key];
   if (inkCv) {
     ctx.save(); ctx.globalAlpha = 0.85;
     for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
@@ -310,12 +329,40 @@ function drawBanditSprite(ctx, e, ox, oy) {
   }
   ctx.drawImage(img, sx, sy, m.frameWidth, m.frameHeight, dx, dy, m.frameWidth*scale, m.frameHeight*scale);
   // hurt flash: red silhouette pulse over the frame
-  if (e.hurtFlash > 0 && BanditSprites.red[name]) {
+  if (e.hurtFlash > 0 && EnemySprites.red[key]) {
     ctx.save(); ctx.globalAlpha = 0.5;
-    ctx.drawImage(BanditSprites.red[name], sx, sy, m.frameWidth, m.frameHeight,
+    ctx.drawImage(EnemySprites.red[key], sx, sy, m.frameWidth, m.frameHeight,
                   dx, dy, m.frameWidth*scale, m.frameHeight*scale);
     ctx.restore();
   }
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
+/* ---- Darryl — single-frame camp NPC sprite (ART-19) --------------------- */
+const DarrylSprite = {
+  img: null, ink: null,
+  load() {
+    if (!CFG.USE_SPRITES) return;
+    Assets.loadImage('darryl_idle', 'assets/characters/darryl/darryl_idle.png').then((img) => {
+      if (img) { this.img = img; if (CFG.FX_OUTLINE) this.ink = EnemySprites._tint(img, '#1a120a'); }
+    });
+  },
+};
+// Draw Darryl's sprite anchored at his feet; false -> procedural fallback.
+function drawDarrylSprite(ctx, tx, ty, bobY) {
+  const img = DarrylSprite.img; if (!img) return false;
+  const scale = (CFG.SPRITE_DRAW_SCALE || 0.5) * 1.05;   // reads a touch taller
+  const footY = 116;                                     // feet line in the 128 cell
+  const dx = tx - 64*scale, dy = ty + bobY - footY*scale;
+  const aw = img.width*scale, ah = img.height*scale;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  if (CFG.FX_OUTLINE && DarrylSprite.ink) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.drawImage(DarrylSprite.ink, dx+ix, dy+iy, aw, ah);
+    ctx.restore();
+  }
+  ctx.drawImage(img, dx, dy, aw, ah);
   ctx.imageSmoothingEnabled = prev;
   return true;
 }

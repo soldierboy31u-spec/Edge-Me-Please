@@ -576,8 +576,10 @@ class Enemy {
     this.knockVX=0; this.knockVY=0;  // explosion/bullet knockback impulse
     this.stun=0;               // >0 = roped/stunned, can't act (lasso)
     this.home={x,y};
-    // Visual-only sprite animator (bandit sheets; other kinds stay procedural)
-    if (typeof BANDIT_MANIFEST !== 'undefined') this.spriteAnim = new SpriteAnimator(BANDIT_MANIFEST);
+    // Visual-only sprite animator, per-kind manifest (bandit/lawman/enforcer).
+    const _man = (typeof ENEMY_MANIFESTS !== 'undefined') && ENEMY_MANIFESTS[this.kind];
+    if (_man) this.spriteAnim = new SpriteAnimator(_man);
+    else if (typeof BANDIT_MANIFEST !== 'undefined') this.spriteAnim = new SpriteAnimator(BANDIT_MANIFEST);
   }
   applyKnockback(ang, force) { this.knockVX += Math.cos(ang)*force; this.knockVY += Math.sin(ang)*force; }
 
@@ -668,12 +670,15 @@ class Enemy {
     if (this.recoil>0) this.recoil=Math.max(0,this.recoil-dt*6);
     if (this.hurtFlash>0) this.hurtFlash-=dt;
 
-    // Visual-only sprite anim state (walk when moving, face target/heading).
+    // Visual-only sprite anim state (shoot briefly after firing, else walk when
+    // moving, else idle; face heading when moving, target when aiming/shooting).
+    if (this.spriteShootT > 0) this.spriteShootT -= dt;
     if (this.spriteAnim && CFG.USE_SPRITES) {
       const sp = Math.hypot(this.vx, this.vy);
-      this.spriteAnim.setAnimation(sp > 20 ? 'walk' : 'idle');
-      const v = sp > 20 ? isoScreenVec(this.vx, this.vy)
-                        : isoScreenVec(Math.cos(this.aim), Math.sin(this.aim));
+      const shooting = this.spriteShootT > 0;
+      this.spriteAnim.setAnimation(shooting ? 'shoot' : (sp > 20 ? 'walk' : 'idle'));
+      const v = (sp > 20 && !shooting) ? isoScreenVec(this.vx, this.vy)
+                                       : isoScreenVec(Math.cos(this.aim), Math.sin(this.aim));
       this.spriteAnim.setDirection(vectorTo8DirName(v[0], v[1]));
       this.spriteAnim.update(dt);
     }
@@ -699,6 +704,8 @@ class Enemy {
 
   shoot(player) {
     this.recoil=1;
+    this.spriteShootT = 0.18;   // play the shoot sheet (bandit) for ~3 frames
+
     const mx=this.x+Math.cos(this.aim)*22, my=this.y+Math.sin(this.aim)*22;
     const spread=(Math.random()-0.5)*CFG.ENEMY_SPREAD*2;
     Game.bullets.push(new Bullet(mx,my,this.aim+spread,CFG.ENEMY_BULLET_SPEED,this.dmg,false));
@@ -738,10 +745,10 @@ class Enemy {
       ctx.beginPath(); ctx.arc(tx+Math.cos(this.aim)*22, ty+Math.sin(this.aim)*22, 2+charge*2, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    // Bandits use the sprite sheets when loaded; other kinds (and the
-    // fallback) keep the procedural art with their palette identity.
-    const drewSprite = this.kind==='bandit' && CFG.USE_SPRITES
-      && typeof drawBanditSprite !== 'undefined' && drawBanditSprite(ctx, this, ox, oy);
+    // Bandit/lawman/enforcer use their sprite sheets when loaded; other kinds
+    // (and the fallback) keep the procedural art with their palette identity.
+    const drewSprite = (this.kind==='bandit' || this.kind==='lawman' || this.kind==='enforcer')
+      && CFG.USE_SPRITES && typeof drawEnemySprite !== 'undefined' && drawEnemySprite(ctx, this, ox, oy);
     if (!drewSprite) drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0, palette);
     // Roped/stunned — spinning stars over the head
     if (this.stun>0) {
@@ -756,8 +763,9 @@ class Enemy {
       ctx.fillStyle = this.kind==='lawman'?'#6a86c8':'#b54';
       ctx.fillRect(tx-w/2, ty-26, w*(this.hp/this.maxhp), h);
     }
-    // Star badge for lawmen
-    if (this.kind==='lawman') {
+    // Star badge for lawmen — only on the procedural fallback; the sprite
+    // already wears a silver star, so skip the floating badge when drawn.
+    if (this.kind==='lawman' && !drewSprite) {
       ctx.fillStyle='#e8d56a'; ctx.font='10px Georgia'; ctx.textAlign='center';
       ctx.fillText('★', tx, ty-30);
     }
