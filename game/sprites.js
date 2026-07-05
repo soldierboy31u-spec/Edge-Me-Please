@@ -318,7 +318,7 @@ function drawEnemySprite(ctx, e, ox, oy) {
   const key = e.kind + '_' + name;
   const prev = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = true;
-  const inkCv = CFG.FX_OUTLINE && EnemySprites.ink[key];
+  const inkCv = CFG.FX_OUTLINE && DBG.outline && EnemySprites.ink[key];
   if (inkCv) {
     ctx.save(); ctx.globalAlpha = 0.85;
     for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
@@ -378,7 +378,7 @@ function drawDarrylSprite(ctx, tx, ty, bobY) {
   const dx = tx - 64*scale, dy = ty + bobY - footY*scale;
   const aw = img.width*scale, ah = img.height*scale;
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
-  if (CFG.FX_OUTLINE && DarrylSprite.ink) {
+  if (CFG.FX_OUTLINE && DBG.outline && DarrylSprite.ink) {
     ctx.save(); ctx.globalAlpha = 0.85;
     for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.drawImage(DarrylSprite.ink, dx+ix, dy+iy, aw, ah);
     ctx.restore();
@@ -419,7 +419,7 @@ const IsoBuildings = {
 // Draw a building's iso art if loaded; returns false so the caller falls back
 // to the placeholder diamond when the PNG isn't available yet.
 function drawIsoBuildingArt(b) {
-  if (!b.iso) return false;
+  if (!DBG.art || !b.iso) return false;
   const def = ISO_BUILDING_ART[b.iso];
   const img = def && IsoBuildings.loaded[b.iso];
   if (!def || !img) return false;
@@ -474,6 +474,7 @@ const IsoProps = {
 // Draw a scenery item's generated art; false -> caller draws the procedural
 // fallback shape instead (art missing or type has no ticket delivered yet).
 function drawIsoPropArt(s, ox, oy) {
+  if (!DBG.art) return false;
   const variants = ISO_PROP_ART[s.type];
   if (!variants) return false;
   const def = variants[Math.floor(s.seed) % variants.length];
@@ -521,6 +522,7 @@ const IsoLandmarks = {
 };
 // Draw a landmark's generated art; false -> caller draws the procedural shape.
 function drawIsoLandmarkArt(lm, ox, oy) {
+  if (!DBG.art) return false;
   const def = ISO_LANDMARK_ART[lm.type];
   if (!def) return false;
   const file = (def.openFile && lm.opened) ? def.openFile : def.file;

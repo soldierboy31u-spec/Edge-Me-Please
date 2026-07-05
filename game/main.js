@@ -41,12 +41,30 @@ function loop(now) {
   // Clamp dt to avoid huge jumps after tab switches (prevents tunneling / chaos).
   dt = Math.min(dt, 0.05);
 
+  DBG.frame(now);
   handleMeta();
+  handleDebugKeys();
   Game.update(dt);
+  const _r0 = performance.now();
   render();
+  DBG.renderMs = +(performance.now() - _r0).toFixed(1);
   Input.endFrame();
 
   requestAnimationFrame(loop);
+}
+
+// Backtick toggles the profiler; while it's open, number keys flip each system.
+function handleDebugKeys() {
+  if (Input.hit('`') || Input.hit('~')) DBG.show = !DBG.show;
+  if (!DBG.show) return;
+  const T = (k, prop) => { if (Input.hit(k)) DBG[prop] = !DBG[prop]; };
+  T('1','sand'); T('2','decals'); T('3','road');
+  T('4','outline'); T('5','grain'); T('6','sepia');
+  T('7','vignette'); T('8','art'); T('9','tint');
+  if (Input.hit('o')) DBG.auto = !DBG.auto;   // toggle adaptive quality
+  if (Input.hit('0')) {   // 0 = flip ALL cosmetic FX at once
+    const v = !DBG.grain; DBG.grain=DBG.sepia=DBG.vignette=DBG.tint=v;
+  }
 }
 
 /* ---------------------------------------------------------------------------

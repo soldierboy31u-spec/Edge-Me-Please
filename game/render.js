@@ -72,7 +72,7 @@ function render() {
 
     drawMissionMarker(ox, oy);
     drawReticle();
-    drawLightingTint();
+    if (DBG.tint && DBG.fxWash()) drawLightingTint();
     drawDeadEye();
     drawHUD();
     drawMinimap();
@@ -81,6 +81,7 @@ function render() {
     if (Game.state===STATE.PAUSE) drawPauseScreen();
     if (Game.state===STATE.GAMEOVER) drawGameOver();
     drawFilmFX();
+    if (DBG.show) drawDebugPanel();
     return;
   }
 
@@ -215,11 +216,14 @@ function _initFilmFX() {
   }
 }
 function drawFilmFX() {
-  if (!CFG.FX_GRAIN && !CFG.FX_VIGNETTE && !CFG.FX_SEPIA) return;
+  const sepia = CFG.FX_SEPIA > 0 && DBG.sepia && DBG.fxWash();
+  const vign  = CFG.FX_VIGNETTE > 0 && DBG.vignette && DBG.fxWash();
+  const grain = CFG.FX_GRAIN > 0 && DBG.fxGrain();
+  if (!sepia && !vign && !grain) return;
   if (!_vignetteCv) _initFilmFX();
   ctx.save();
   // Warm sepia wash
-  if (CFG.FX_SEPIA > 0) {
+  if (sepia) {
     ctx.globalCompositeOperation='multiply';
     ctx.globalAlpha = CFG.FX_SEPIA;
     ctx.fillStyle = '#e0b070';
@@ -227,19 +231,48 @@ function drawFilmFX() {
     ctx.globalCompositeOperation='source-over';
   }
   // Vignette
-  if (CFG.FX_VIGNETTE > 0) {
+  if (vign) {
     ctx.globalAlpha = CFG.FX_VIGNETTE;
     ctx.drawImage(_vignetteCv, 0, 0);
   }
-  // Crawling grain — cycle tiles + jitter the offset each frame
-  if (CFG.FX_GRAIN > 0) {
+  // Crawling grain — cycle tiles + jitter the offset each frame.
+  // NOTE: 'overlay' blend here cost ~54ms/frame on software/weak GPUs (the
+  // single biggest frame cost). 'source-over' is near-free and, at this low
+  // alpha, visually near-identical. Tunable via CFG.FX_GRAIN_BLEND.
+  if (grain) {
     ctx.globalAlpha = CFG.FX_GRAIN;
-    ctx.globalCompositeOperation='overlay';
+    ctx.globalCompositeOperation = CFG.FX_GRAIN_BLEND || 'source-over';
     const cv = _grainCvs[Math.floor(Game.time*24)%3];
     const jx = ((Game.time*97)%1)*192, jy = ((Game.time*61)%1)*192;
     for (let x=-jx; x<CFG.VIEW_W; x+=192)
       for (let y=-jy; y<CFG.VIEW_H; y+=192)
         ctx.drawImage(cv, x, y);
+  }
+  ctx.restore();
+}
+
+/* Perf profiler panel (backtick toggles). FPS is real end-to-end (rAF loop);
+   number keys flip each system so you can watch the FPS jump and find the cost. */
+function drawDebugPanel() {
+  const on = (b) => b ? 'ON ' : 'off';
+  const tierName = ['MIN','NO-GRAIN','FULL'][DBG.tier];
+  const lines = [
+    `FPS ${DBG.fps}   frame ${DBG.avgMs}ms (worst ${DBG.worstMs})   render(cpu) ${DBG.renderMs}ms`,
+    `auto-quality ${DBG.auto?'ON':'off'}  tier ${DBG.tier}/2 (${tierName})   [O] toggle auto`,
+    `[1] sand ${on(DBG.sand)}   [2] decals ${on(DBG.decals)}   [3] road ${on(DBG.road)}`,
+    `[4] outline ${on(DBG.outline)}   [5] grain ${on(DBG.fxGrain())}   [6] sepia ${on(DBG.sepia&&DBG.fxWash())}`,
+    `[7] vignette ${on(DBG.vignette&&DBG.fxWash())}   [8] art ${on(DBG.art)}   [9] tint ${on(DBG.tint&&DBG.fxWash())}   [0] all-fx`,
+  ];
+  ctx.save();
+  ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  let w = 0; for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
+  const pad = 8, bw = w + pad*2, bh = lines.length*18 + pad*2;
+  const x = Math.round((CFG.VIEW_W - bw)/2), y = 6;
+  ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(x, y, bw, bh);
+  ctx.strokeStyle = '#6a9a8a'; ctx.lineWidth = 1; ctx.strokeRect(x+0.5, y+0.5, bw, bh);
+  for (let i=0;i<lines.length;i++) {
+    ctx.fillStyle = i===0 ? (DBG.fps<40?'#ff6a6a':DBG.fps<55?'#ffd86a':'#6aff8a') : '#cfe0ea';
+    ctx.fillText(lines[i], x+pad, y+pad+13+i*18);
   }
   ctx.restore();
 }
@@ -289,12 +322,12 @@ function drawGroundIso() {
   ctx.save();
   isoTransform();
   const T = CFG.TILE*2, v = ISO_VIEW;
-  const sandPat = (typeof TerrainArt !== 'undefined') && TerrainArt.sandPattern(ctx);
+  const sandPat = DBG.sand && (typeof TerrainArt !== 'undefined') && TerrainArt.sandPattern(ctx);
   if (sandPat) {
     // Tier-3 sand texture across the whole visible plane.
     ctx.fillStyle = sandPat;
     ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, v.maxY - v.minY);
-  } else {
+  } else if (DBG.sand) {                 // procedural fallback (sand image not in yet)
     const x0 = Math.floor(v.minX/T)*T, y0 = Math.floor(v.minY/T)*T;
     for (let x=x0; x<v.maxX+T; x+=T) {
       for (let y=y0; y<v.maxY+T; y+=T) {
@@ -304,7 +337,7 @@ function drawGroundIso() {
       }
     }
   }
-  drawGroundDecalsIso(v);               // decals on the raw sand...
+  if (DBG.decals) drawGroundDecalsIso(v);  // decals on the raw sand...
   if (sandPat) {                        // ...then one dark wash mutes sand + decals
     ctx.fillStyle = 'rgba(42,30,15,0.5)';// together into the sepia palette
     ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, v.maxY - v.minY);
@@ -349,6 +382,7 @@ function drawStreetsIso(v) {
   // tiles vertically, so rotating it would seam).
   ctx.fillStyle='rgba(150,124,80,0.30)';
   ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
+  if (!DBG.road) return;
   // Vertical main drag: tile the road decal straight down the street.
   const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
   const rw = 150, rh = rw * road.height / road.width;

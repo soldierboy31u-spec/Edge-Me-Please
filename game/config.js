@@ -126,6 +126,8 @@ const CFG = {
 
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
+  FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —
+                             // adaptive quality (DBG.tier) drops it on slow hardware
   FX_VIGNETTE: 0.32,         // darkened corners (old-photo framing)
   FX_SEPIA: 0.10,            // warm sepia wash strength
   FX_OUTLINE: true,          // ink outlines on Chris + procedural folk
@@ -154,6 +156,41 @@ Object.assign(CFG, {
   WALK_BOB_PX: 2,            // procedural step-bob amplitude while walking (px)
   WALK_BOB_HZ: 5,            // step-bob frequency; ~matches the 90ms frame cadence
 });
+
+/* --- Perf profiler / debugger (backtick ` toggles the panel) --------------
+   Real end-to-end FPS from the rAF loop, plus per-system toggles so we can
+   bisect what's slow on the actual hardware. Number keys (while the panel is
+   open, in PLAY) flip each system; watch the FPS jump to find the culprit. */
+const DBG = {
+  show: false,
+  fps: 0, avgMs: 0, renderMs: 0, worstMs: 0,
+  _last: 0, _acc: 0, _n: 0, _worst: 0,
+  // system toggles — all on by default (normal look)
+  sand: true, decals: true, road: true,     // 1 / 2 / 3
+  outline: true, grain: true, sepia: true,   // 4 / 5 / 6
+  vignette: true, art: true, tint: true,     // 7 / 8 / 9
+  // Adaptive quality: measures real FPS and sheds the priciest full-screen FX
+  // on slow hardware. tier 2 = full look, 1 = drop grain, 0 = drop all washes.
+  auto: true, tier: 2,
+  frame(now) {                               // called once per rAF from main loop
+    const dt = this._last ? now - this._last : 16; this._last = now;
+    if (dt > this._worst) this._worst = dt;
+    this._acc += dt; this._n++;
+    if (this._acc >= 400) {
+      this.fps = Math.round(1000 * this._n / this._acc);
+      this.avgMs = +(this._acc / this._n).toFixed(1);
+      this.worstMs = +this._worst.toFixed(1);
+      this._acc = 0; this._n = 0; this._worst = 0;
+      if (this.auto) {                       // hysteresis: >~45fps ok, <~33fps shed
+        if (this.avgMs > 30 && this.tier > 0) this.tier--;
+        else if (this.avgMs < 22 && this.tier < 2) this.tier++;
+      }
+    }
+  },
+  // effective FX flags = manual toggle AND the adaptive tier allows it
+  fxGrain() { return this.grain && (!this.auto || this.tier >= 2); },
+  fxWash()  { return (!this.auto || this.tier >= 1); },   // sepia/vignette/tint
+};
 
 // Difficulty modes. Multipliers scale enemy stats off the base CFG values.
 //   hp/dmg   : enemy toughness & damage          (higher = harder)
