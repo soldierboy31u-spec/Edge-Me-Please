@@ -389,6 +389,9 @@ const ISO_PROP_ART = {
   // Town clutter (PROPS array, not SCENERY) — same draw path, keyed by type.
   barrel: [ { file: 'prop_barrel.png', hScale: 3.8 } ],   // upright whiskey barrel
   crate:  [ { file: 'prop_crate.png',  hScale: 3.2 } ],   // iso shipping crate
+  trough: [ { file: 'prop_trough.png', hScale: 2.8 } ],   // long low water trough
+  post:   [ { file: 'prop_post.png',   hScale: 7.0 } ],   // hitching post + rope
+  wagon:  [ { file: 'prop_wagon.png',  hScale: 3.6 } ],   // broken covered wagon
 };
 const IsoProps = {
   loaded: {},   // file -> HTMLImageElement
