@@ -426,6 +426,7 @@ function drawGround(ox, oy) {
 }
 
 function drawScenery(s, ox, oy) {
+  if (typeof drawIsoPropArt !== 'undefined' && drawIsoPropArt(s, ox, oy)) return;
   const tx=s.x-ox, ty=s.y-oy;
   ctx.save();
   // Shadow

@@ -29,7 +29,7 @@ already baked into each prompt below, no assembly needed)
 
 ## Tier 1 — Desert scenery (scattered ~260× across the map; biggest visual lift)
 
-### [ ] ART-01 — Saguaro cactus → `assets/iso/props/prop_cactus_saguaro.png`
+### [x] ART-01 — Saguaro cactus → `assets/iso/props/prop_cactus_saguaro.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a tall SAGUARO CACTUS, slightly crooked with two bent arms, dusty sage-green with darker vertical ribs, a few needle clusters and one small desert bloom on top. Storybook proportions, a little weather-beaten.

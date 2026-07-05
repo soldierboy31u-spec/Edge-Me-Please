@@ -373,6 +373,45 @@ function drawIsoBuildingArt(b) {
   return true;
 }
 
+/* ---- Iso prop art (Tier 1 art tickets — docs/ART_TICKETS.md) -------------
+   Generated PNGs replace the procedural scenery shapes. Keyed by SCENERY
+   type; a type can hold several look variants, picked stably per item from
+   its seed. hScale: draw height in px per unit of the item's collision
+   radius (so bigger obstacles get bigger art). */
+const ISO_PROP_ART = {
+  cactus: [ { file: 'prop_cactus_saguaro.png', hScale: 5.2 } ],
+};
+const IsoProps = {
+  loaded: {},   // file -> HTMLImageElement
+  load() {
+    if (!CFG.ISO) return;
+    for (const variants of Object.values(ISO_PROP_ART))
+      for (const def of variants)
+        Assets.loadImage('prop_' + def.file, 'assets/iso/props/' + def.file)
+          .then(img => { if (img) this.loaded[def.file] = img; });
+  },
+};
+// Draw a scenery item's generated art; false -> caller draws the procedural
+// fallback shape instead (art missing or type has no ticket delivered yet).
+function drawIsoPropArt(s, ox, oy) {
+  const variants = ISO_PROP_ART[s.type];
+  if (!variants) return false;
+  const def = variants[Math.floor(s.seed) % variants.length];
+  const img = IsoProps.loaded[def.file];
+  if (!img) return false;
+  const tx = s.x - ox, ty = s.y - oy;
+  const drawH = s.r * def.hScale;
+  const drawW = drawH * img.width / img.height;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(tx, ty + s.r*0.35, s.r*1.05, s.r*0.42, 0, 0, TAU); ctx.fill();
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, tx - drawW/2, ty + s.r*0.5 - drawH, drawW, drawH);
+  ctx.imageSmoothingEnabled = prev;
+  ctx.restore();
+  return true;
+}
+
 /* ---- Debug overlay (RE-ART-014) — off by default ------------------------ */
 function drawSpriteDebug(ctx, player, ox, oy) {
   const a = ChrisSprites.animator; if (!a) return;
