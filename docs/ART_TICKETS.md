@@ -255,19 +255,16 @@ decals** that lay on top of the sand.
 
 ---
 
-## Delivered & wired in
+## Delivered & wired in — WHOLE BACKLOG COMPLETE ✅
 
 - [x] **Buildings (8):** iso_saloon, iso_bank, iso_sheriff, iso_store,
-      iso_undertaker, iso_stable, iso_chapel, iso_tent
+      iso_undertaker, iso_stable, iso_chapel, iso_tent → `assets/iso/buildings/`
 - [x] **Tier 1 props (10):** cactus_saguaro, cactus_pricklypear, rocks, deadtree,
       shrub, barrel, crate, trough, post, wagon → `assets/iso/props/`
 - [x] **Tier 2 landmarks (6):** bone_arch, mine_closed, mine_open, shrine, camp,
       bone_throne → `assets/iso/landmarks/`
-- [x] **Characters:** bandit_idle + bandit_walk (procedural bandits retired)
-
-## Completed backlog
-
-- [x] **Tier 2b characters:** ART-16 lawman, ART-17 enforcer, ART-18 bandit shoot,
-      ART-19 Darryl — delivered to `assets/characters/`.
-- [x] **Tier 3 terrain:** ART-20 sand tile, ART-21 road, ART-22 decal pack —
-      delivered to `assets/iso/terrain/`.
+- [x] **Tier 2b characters:** bandit (idle/walk/shoot), lawman (idle/walk),
+      enforcer (idle/walk), Darryl → `assets/characters/`. Enemies render as
+      kind-keyed sprites (ENEMY_MANIFESTS); Darryl stands at camp.
+- [x] **Tier 3 terrain:** ground_sand tile, decal_road, decal grass/cracks/pebbles
+      → `assets/iso/terrain/`. Sand pattern + road + scattered decals on the plane.
