@@ -83,13 +83,68 @@ already baked into each prompt below, no assembly needed)
 
 ---
 
-## Tier 2 — Landmarks (story moments; prompts written when Tier 1 lands)
+## Tier 2 — Landmarks (large story set-pieces, one per world location)
 
-- [ ] ART-11 — The Bone Arch (giant rib-bone archway + skull keystone)
-- [ ] ART-12 — Collapsed Mine entrance (timber frame, boarded mouth + opened variant)
-- [ ] ART-13 — Desert Shrine totem (stacked bones, offerings)
-- [ ] ART-14 — Wagon-circle ambush set piece
-- [ ] ART-15 — Rattlebone Hideout: bone throne + rock spires
+**Save folder:** `assets/iso/landmarks/` — create it if it does not exist
+(same level as `assets/iso/props/` and `assets/iso/buildings/`).
+**Reference to attach:** `assets/iso/buildings/iso_saloon.png` (same style anchor
+as everything else — the prompts describe bone/stone materials explicitly, but
+the ink-outline + cartoon + 2:1-iso + sepia-lighting style comes from the ref).
+
+Landmarks are BIG — each fills its frame and reads from far off. They use the
+LANDMARK HEADER below (not the prop header): same transparency/no-shadow/no-text
+rules, but "large structure" instead of "one small object". The header is already
+baked into every ticket prompt below — no assembly needed.
+
+Where each one lives in the world (for context; the artist doesn't need it, but
+it tells the wiring side which landmark the file maps to):
+`arch` NE badlands · `mine` NW hills · `shrine` SE desert · `wagons` SW flats ·
+`hideout` far-E past the arch (Buckshot Benny's boss camp).
+
+> **LANDMARK HEADER** — Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+
+### [ ] ART-11 — The Bone Arch → `assets/iso/landmarks/landmark_bone_arch.png`
+> Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+>
+> The structure is THE BONE ARCH — a colossal archway made of giant pale bleached rib-bones curving up from both sides and meeting overhead, with a huge horned animal SKULL as the keystone at the very top center. Weathered ivory-and-tan bone, cracked and sun-bleached. The middle of the arch is WIDE OPEN — a clear empty gap between the two bone legs, tall and wide enough to ride a horse straight through. Ominous but cartoon, a monument you can see from across the desert.
+
+### [ ] ART-12 — Collapsed Mine (TWO files) → `assets/iso/landmarks/landmark_mine_closed.png` **and** `assets/iso/landmarks/landmark_mine_open.png`
+> This ticket needs TWO images, same mine from the same angle so they can swap in
+> place. Generate the CLOSED version first, then re-use it as an extra reference
+> for the OPEN version so the framing matches.
+>
+> **CLOSED** (`landmark_mine_closed.png`):
+> Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+>
+> The structure is a COLLAPSED MINE ENTRANCE set into a rocky hillside — a heavy timber A-frame doorway of thick weathered wooden beams, its mouth completely BOARDED UP and CAVED IN behind a pile of rubble and broken planks. A rusted mine-cart rail track runs out of the mouth and disappears under the debris. Dark, abandoned, sealed shut.
+>
+> **OPEN** (`landmark_mine_open.png`) — identical mine, same size and camera angle, but BLASTED OPEN:
+> Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+>
+> The structure is the SAME timber-framed MINE ENTRANCE in the same rocky hillside, from the same angle — but now BLOWN WIDE OPEN by dynamite. The boards are shattered and blasted aside, the mouth is a dark open tunnel leading into blackness, splintered broken timbers lean around the opening, scattered rubble and faint dark scorch marks from the explosion frame the entrance. The rusted rail track now runs into the open tunnel.
+
+### [ ] ART-13 — Desert Shrine → `assets/iso/landmarks/landmark_shrine.png`
+> Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+>
+> The structure is a DESERT BONE SHRINE — a tall totem of stacked animal skulls and long pale bones bound together with old rope and rawhide strips, standing upright like a cairn. It is draped with a few feathers, strings of beads, and small tattered cloth offerings. A ring of small stones and a couple of melted candle stubs sit at its foot. Eerie, sacred, sun-bleached and weather-worn.
+
+### [ ] ART-14 — Ambush-Camp centerpiece → `assets/iso/landmarks/landmark_camp.png`
+> NOTE: the ring of covered wagons around this is already done (ART-10 prop,
+> placed 6× in a circle). THIS ticket is only the small centerpiece that sits in
+> the MIDDLE of that wagon ring — so keep it compact, not another wagon.
+>
+> Isometric video-game LANDMARK, a small set-piece, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object cluster, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath it. NO text, letters, or numbers anywhere.
+>
+> The object is an ABANDONED BANDIT CAMPFIRE — a ring of blackened stones around a dead fire of charred logs and grey ash, with a cast-iron cooking pot hanging from a black iron tripod over the cold fire. A rolled-up bedroll and a battered tin cup lie beside it, and one upturned crate serves as a seat. It reads as an ambush camp whose owners just fled.
+
+### [ ] ART-15 — The Bone Throne → `assets/iso/landmarks/landmark_bone_throne.png`
+> NOTE: the ring of rock spires walling the hideout is already done (ART placeholder
+> 'spire' props). THIS ticket is only the THRONE that sits at the center of that
+> bowl — Buckshot Benny's seat.
+>
+> Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
+>
+> The structure is THE BONE THRONE — a menacing outlaw-warlord's chair built from massive bleached bones and horned animal skulls lashed together with rope and rusted chains. A tattered animal hide is draped over the seat, and a couple of skulls are impaled on the tall spiked bones of the backrest. Imposing but cartoon — the centerpiece of a badlands hideout, a seat of power.
 
 ## Tier 2b — Characters (character sheet pipeline, NOT the prop header —
 uses docs/CHARACTER_SPRITE_SPEC.md like Chris/bandit)
