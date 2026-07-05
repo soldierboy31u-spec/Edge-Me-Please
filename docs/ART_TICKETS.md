@@ -34,7 +34,7 @@ already baked into each prompt below, no assembly needed)
 >
 > The object is a tall SAGUARO CACTUS, slightly crooked with two bent arms, dusty sage-green with darker vertical ribs, a few needle clusters and one small desert bloom on top. Storybook proportions, a little weather-beaten.
 
-### [ ] ART-02 — Prickly pear cactus → `assets/iso/props/prop_cactus_pricklypear.png`
+### [x] ART-02 — Prickly pear cactus → `assets/iso/props/prop_cactus_pricklypear.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a low clumpy PRICKLY PEAR CACTUS — a cluster of flat oval pads growing from one base, dusty sage-green with ink-outlined pads, a couple of small red fruits on the upper pads. Low and wide, knee-height.

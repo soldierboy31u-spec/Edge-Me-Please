@@ -379,7 +379,10 @@ function drawIsoBuildingArt(b) {
    its seed. hScale: draw height in px per unit of the item's collision
    radius (so bigger obstacles get bigger art). */
 const ISO_PROP_ART = {
-  cactus: [ { file: 'prop_cactus_saguaro.png', hScale: 5.2 } ],
+  cactus: [
+    { file: 'prop_cactus_saguaro.png',    hScale: 5.2 },  // tall & thin
+    { file: 'prop_cactus_pricklypear.png', hScale: 3.0 },  // low & wide clump
+  ],
 };
 const IsoProps = {
   loaded: {},   // file -> HTMLImageElement
