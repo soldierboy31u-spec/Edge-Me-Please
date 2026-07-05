@@ -49,7 +49,7 @@ already baked into each prompt below, no assembly needed)
 >
 > The object is a gnarled DEAD DESERT TREE — bare twisted branches, no leaves, bleached grey-brown bark with deep cracks, one broken limb hanging. Spooky but cartoon, like it has a story.
 
-### [ ] ART-05 — Sagebrush shrub → `assets/iso/props/prop_shrub.png`
+### [x] ART-05 — Sagebrush shrub → `assets/iso/props/prop_shrub.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a scruffy SAGEBRUSH SHRUB — a low round tangle of dusty olive-green and tan brush, dry twigs poking out, desert-parched. Small and simple, reads at tiny sizes.
