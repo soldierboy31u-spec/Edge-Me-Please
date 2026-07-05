@@ -386,6 +386,9 @@ const ISO_PROP_ART = {
   rock:  [ { file: 'prop_rocks.png',    hScale: 2.6 } ],  // low boulder cluster
   tree:  [ { file: 'prop_deadtree.png', hScale: 3.6 } ],  // tall gnarled snag
   shrub: [ { file: 'prop_shrub.png',    hScale: 3.0 } ],  // scruffy sagebrush
+  // Town clutter (PROPS array, not SCENERY) — same draw path, keyed by type.
+  barrel: [ { file: 'prop_barrel.png', hScale: 3.8 } ],   // upright whiskey barrel
+  crate:  [ { file: 'prop_crate.png',  hScale: 3.2 } ],   // iso shipping crate
 };
 const IsoProps = {
   loaded: {},   // file -> HTMLImageElement

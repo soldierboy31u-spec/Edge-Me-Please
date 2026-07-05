@@ -773,6 +773,7 @@ function drawProps(ox, oy) {          // legacy unsorted path (DEPTH_SORT off)
   }
 }
 function drawProp(p, ox, oy) {
+  if (typeof drawIsoPropArt !== 'undefined' && drawIsoPropArt(p, ox, oy)) return;
   {
     const tx=p.x-ox, ty=p.y-oy;
     // soft contact shadow

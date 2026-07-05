@@ -56,12 +56,12 @@ already baked into each prompt below, no assembly needed)
 
 ## Tier 1b — Town clutter (alleys & cover pieces)
 
-### [ ] ART-06 — Barrel → `assets/iso/props/prop_barrel.png`
+### [x] ART-06 — Barrel → `assets/iso/props/prop_barrel.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a wooden WHISKEY BARREL standing upright — weathered oak staves, two dark iron hoops, a worn lid. Slightly banged up.
 
-### [ ] ART-07 — Crate → `assets/iso/props/prop_crate.png`
+### [x] ART-07 — Crate → `assets/iso/props/prop_crate.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a wooden SHIPPING CRATE — square slat-board box with corner brackets and a diagonal brace, sun-bleached planks. No markings or stencils (no text).
