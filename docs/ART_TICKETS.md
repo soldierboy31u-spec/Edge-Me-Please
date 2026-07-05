@@ -146,13 +146,68 @@ it tells the wiring side which landmark the file maps to):
 >
 > The structure is THE BONE THRONE — a menacing outlaw-warlord's chair built from massive bleached bones and horned animal skulls lashed together with rope and rusted chains. A tattered animal hide is draped over the seat, and a couple of skulls are impaled on the tall spiked bones of the backrest. Imposing but cartoon — the centerpiece of a badlands hideout, a seat of power.
 
-## Tier 2b — Characters (character sheet pipeline, NOT the prop header —
-uses docs/CHARACTER_SPRITE_SPEC.md like Chris/bandit)
+## Tier 2b — Characters (character SHEET pipeline — different from props/landmarks)
 
-- [ ] ART-16 — Lawman idle + walk sheets (blue coat, star)
-- [ ] ART-17 — Enforcer idle + walk sheets (heavier build, dark red coat)
-- [ ] ART-18 — Bandit shoot sheet (3f/dir, completes the bandit set)
-- [ ] ART-19 — Darryl standing sprite (1f/dir or single south view)
+These are animation SHEETS, not single objects. Full contract in
+`docs/CHARACTER_SPRITE_SPEC.md`. Read this before starting:
+
+- **Reference to attach:** an existing bandit sheet (NOT the saloon) so the model
+  copies the grid layout + character style. For a **4-frame idle** attach
+  `assets/characters/bandit/bandit_idle.png` (4 cols × 8 rows). For an **8-frame
+  walk** attach `assets/characters/bandit/bandit_walk.png` (8 cols × 8 rows). For
+  the **bandit shoot** attach BOTH so the same bandit identity is preserved.
+- **Grid:** 8 ROWS = 8 facing directions, top→bottom in this exact order —
+  row1 SOUTH (toward viewer), row2 SOUTH-WEST, row3 WEST, row4 NORTH-WEST,
+  row5 NORTH (away), row6 NORTH-EAST, row7 EAST, row8 SOUTH-EAST. Each COLUMN =
+  one animation frame, left→right. Cell = 128×128 px.
+- **What the wiring side fixes on delivery** (so don't sweat these): the EAST /
+  NORTH-EAST / SOUTH-EAST rows are auto-rebuilt as mirrors of the west-family rows
+  (`fix_sheet.py`), frame-to-frame lighting is tone-matched (`normalize_sheet.py`),
+  and the feet baseline is checked (`validate_sheet.py`). **Focus the generation
+  on getting the SOUTH, SOUTH-WEST, WEST, NORTH-WEST, NORTH rows right** — the
+  east half is regenerated from those.
+- **Save folders** are per character, listed on each ticket. Create the folder if
+  it doesn't exist.
+
+> **CHARACTER SHEET HEADER** (baked into each prompt below) — A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
+
+### [ ] ART-16 — Lawman (TWO sheets) → `assets/characters/lawman/lawman_idle.png` **and** `assets/characters/lawman/lawman_walk.png`
+> **IDLE** (`lawman_idle.png`, 4 columns × 8 rows = 512×1024) — attach `bandit_idle.png` as reference:
+> A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 4 columns. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
+>
+> The character is a FRONTIER LAWMAN — a lean, upright gunman in a dark navy-blue frock coat with a shiny silver five-point SHERIFF'S STAR on the chest, a tan flat-brim hat, a holstered revolver on his hip, and worn boots. Stern and authoritative. The 4 idle frames are a subtle breathing / ready sway with the revolver lowered.
+>
+> **WALK** (`lawman_walk.png`, 8 columns × 8 rows = 1024×1024) — attach `bandit_walk.png` as reference:
+> A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 8 columns forming one full walk cycle. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
+>
+> The character is the SAME FRONTIER LAWMAN — lean gunman, dark navy-blue frock coat, silver five-point sheriff's star on the chest, tan flat-brim hat, holstered revolver, boots. The 8 frames are a full walk cycle: legs striding, coat and arms swinging naturally.
+
+### [ ] ART-17 — Enforcer (TWO sheets) → `assets/characters/enforcer/enforcer_idle.png` **and** `assets/characters/enforcer/enforcer_walk.png`
+> **IDLE** (`enforcer_idle.png`, 4 columns × 8 rows = 512×1024) — attach `bandit_idle.png` as reference:
+> A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 4 columns. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
+>
+> The character is an ENFORCER — a big, heavy-set brute of a gunman, noticeably broader and taller than a normal bandit, in a dark blood-red long coat, a black hat, heavy boots, with a cut-down shotgun or heavy revolver. Thick neck, wide shoulders, menacing. The 4 idle frames are a slow, heavy breathing sway, weapon lowered.
+>
+> **WALK** (`enforcer_walk.png`, 8 columns × 8 rows = 1024×1024) — attach `bandit_walk.png` as reference:
+> A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME character turned to face that direction. Each COLUMN is one animation frame of that pose, left to right — this sheet has 8 columns forming one full walk cycle. Every cell is exactly 128×128 px, the SAME character with the SAME outfit and colors in every cell, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO parchment card or border — just the character on empty transparency in each cell.
+>
+> The character is the SAME ENFORCER — big heavy-set brute, dark blood-red long coat, black hat, heavy boots, cut-down shotgun or heavy revolver. The 8 frames are a full walk cycle with a heavy, lumbering stride, shoulders rolling.
+
+### [ ] ART-18 — Bandit shoot sheet → `assets/characters/bandit/bandit_shoot.png`
+> Attach BOTH `assets/characters/bandit/bandit_idle.png` AND `assets/characters/bandit/bandit_walk.png` as reference so the SAME bandit character is preserved. Sheet is 3 columns × 8 rows = 384×1024.
+>
+> A character sprite SHEET laid out as a GRID, in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference bandit sheets — and it MUST be the SAME bandit character (same hat, bandana, coat, colors, proportions). Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom of each cell). The grid has 8 ROWS, one per facing direction, top to bottom in this exact order: SOUTH (facing toward the viewer), SOUTH-WEST, WEST (facing left), NORTH-WEST, NORTH (facing away), NORTH-EAST, EAST (facing right), SOUTH-EAST. Each row is the SAME bandit turned to face that direction. Each COLUMN is one animation frame, left to right — this sheet has 3 columns forming a SHOOT action. Every cell is exactly 128×128 px, feet planted on the same baseline near the bottom of each cell, body horizontally centered. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO visible grid lines, NO text/labels/numbers, NO border — just the bandit on empty transparency in each cell.
+>
+> The 3 SHOOT frames per direction are: (1) revolver snapped up and aimed toward the facing direction, arm extended; (2) the shot — a small muzzle flash at the barrel and the arm kicking back from recoil; (3) settling back down, arm lowering slightly, smoke wisp. The gun always points in the row's facing direction.
+
+### [ ] ART-19 — Darryl standing sprite → `assets/characters/darryl/darryl_idle.png`
+> Darryl is a stationary camp NPC who only ever faces the player, so this is NOT a
+> grid — just ONE single 128×128 figure. Attach `assets/characters/bandit/bandit_idle.png`
+> for the style.
+>
+> A single character sprite in the exact hand-drawn art style, line weight, and cartoon shading of the attached reference sheet. Three-quarter top-down view (camera tilted about 35°, you see the hat and face, feet at the bottom). ONE single figure, 128×128 px, facing SOUTH (toward the viewer), standing idle, horizontally centered with the feet near the bottom of the frame. BACKGROUND fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white. NO ground shadow, NO background, NO text/labels/numbers, NO border — just the character on empty transparency.
+>
+> The character is DARRYL — a grizzled old camp prospector and mentor: weathered lined face, bushy grey beard, a battered wide-brim hat, a long dusty tan duster coat over suspenders and a work shirt, standing calmly with his hands resting near his belt. Kindly but tough, a survivor. Warm earthy browns.
 
 ## Tier 3 — Terrain (different generation ask: seamless tiles / decals)
 
