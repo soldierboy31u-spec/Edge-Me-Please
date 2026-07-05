@@ -339,6 +339,27 @@ function drawEnemySprite(ctx, e, ox, oy) {
   return true;
 }
 
+/* ---- Terrain art (Tier 3 — sand tile, road, ground decals) --------------
+   Flat top-down textures laid on the iso ground plane. Sand is an opaque
+   repeating pattern; road + decals are transparent overlays. */
+const TerrainArt = {
+  sand: null, _sandPat: null,
+  road: null,
+  decals: {},   // 'grass'|'cracks'|'pebbles' -> img
+  load() {
+    if (!CFG.ISO) return;
+    Assets.loadImage('ground_sand', 'assets/iso/terrain/ground_sand.png').then((img) => { if (img) this.sand = img; });
+    Assets.loadImage('decal_road',  'assets/iso/terrain/decal_road.png').then((img) => { if (img) this.road = img; });
+    for (const d of ['grass','cracks','pebbles'])
+      Assets.loadImage('decal_'+d, 'assets/iso/terrain/decal_'+d+'.png').then((img) => { if (img) this.decals[d] = img; });
+  },
+  sandPattern(ctx) {
+    if (!this.sand) return null;
+    if (!this._sandPat) this._sandPat = ctx.createPattern(this.sand, 'repeat');
+    return this._sandPat;
+  },
+};
+
 /* ---- Darryl — single-frame camp NPC sprite (ART-19) --------------------- */
 const DarrylSprite = {
   img: null, ink: null,

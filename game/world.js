@@ -64,6 +64,22 @@ function generateScenery() {
   }
 }
 
+// Flat ground decals (dry grass, cracked earth, pebbles) — purely visual,
+// drawn flat on the ground plane with no collision. Tier-3 art (ART-22).
+let DECALS = [];
+function generateDecals() {
+  DECALS = [];
+  const types = ['grass','grass','pebbles','cracks'];   // weight grass a little
+  for (let i = 0; i < 95; i++) {
+    const x = rand(90, CFG.WORLD_W - 90);
+    const y = rand(90, CFG.WORLD_H - 90);
+    // thin them out inside the town square so the plaza stays readable
+    if (Math.abs(x - TOWN_CX) < 430 && Math.abs(y - TOWN_CY) < 430 && Math.random() < 0.6) continue;
+    DECALS.push({ type: types[randInt(0, types.length - 1)], x, y,
+                  seed: Math.random() * 9, scale: rand(0.55, 0.95) });
+  }
+}
+
 // Fences flanking the main street (decorative + collidable posts segments).
 const FENCES = [
   { x: TOWN_CX-520, y: TOWN_CY-40, w: 14, h: 360 },

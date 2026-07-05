@@ -289,18 +289,27 @@ function drawGroundIso() {
   ctx.save();
   isoTransform();
   const T = CFG.TILE*2, v = ISO_VIEW;
-  const x0 = Math.floor(v.minX/T)*T, y0 = Math.floor(v.minY/T)*T;
-  for (let x=x0; x<v.maxX+T; x+=T) {
-    for (let y=y0; y<v.maxY+T; y+=T) {
-      const h = (Math.sin(x*0.013)+Math.cos(y*0.017))*0.5;
-      ctx.fillStyle = h>0 ? 'rgba(120,100,60,0.10)' : 'rgba(60,48,28,0.12)';
-      ctx.fillRect(x, y, T, T);
+  const sandPat = (typeof TerrainArt !== 'undefined') && TerrainArt.sandPattern(ctx);
+  if (sandPat) {
+    // Tier-3 sand texture across the whole visible plane.
+    ctx.fillStyle = sandPat;
+    ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, v.maxY - v.minY);
+  } else {
+    const x0 = Math.floor(v.minX/T)*T, y0 = Math.floor(v.minY/T)*T;
+    for (let x=x0; x<v.maxX+T; x+=T) {
+      for (let y=y0; y<v.maxY+T; y+=T) {
+        const h = (Math.sin(x*0.013)+Math.cos(y*0.017))*0.5;
+        ctx.fillStyle = h>0 ? 'rgba(120,100,60,0.10)' : 'rgba(60,48,28,0.12)';
+        ctx.fillRect(x, y, T, T);
+      }
     }
   }
-  // Main street
-  ctx.fillStyle='rgba(150,124,80,0.35)';
-  ctx.fillRect(TOWN_CX-70, 0, 140, CFG.WORLD_H);
-  ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
+  drawGroundDecalsIso(v);               // decals on the raw sand...
+  if (sandPat) {                        // ...then one dark wash mutes sand + decals
+    ctx.fillStyle = 'rgba(42,30,15,0.5)';// together into the sepia palette
+    ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, v.maxY - v.minY);
+  }
+  drawStreetsIso(v);                    // road path reads clearly on the muted ground
   // No hard border wall: the desert stretches past the playfield and
   // gradually dissolves into darkness (the invisible clamp still stops you).
   const F = 900, W = CFG.WORLD_W, H = CFG.WORLD_H;
@@ -324,6 +333,41 @@ function drawGroundIso() {
   if (v.minY < -F) ctx.fillRect(v.minX, v.minY, v.maxX - v.minX, -F - v.minY);
   if (v.maxY > H+F) ctx.fillRect(v.minX, H+F, v.maxX - v.minX, v.maxY - (H+F));
   ctx.restore();
+}
+
+// Main streets — Tier-3 road decal tiled along each drag when loaded, else a
+// light packed-dirt wash. Called inside drawGroundIso's iso transform.
+function drawStreetsIso(v) {
+  const road = (typeof TerrainArt !== 'undefined') && TerrainArt.road;
+  if (!road) {
+    ctx.fillStyle='rgba(150,124,80,0.35)';
+    ctx.fillRect(TOWN_CX-70, 0, 140, CFG.WORLD_H);
+    ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
+    return;
+  }
+  // Horizontal cross-street stays a light packed-dirt wash (the road strip only
+  // tiles vertically, so rotating it would seam).
+  ctx.fillStyle='rgba(150,124,80,0.30)';
+  ctx.fillRect(0, TOWN_CY-60, CFG.WORLD_W, 120);
+  // Vertical main drag: tile the road decal straight down the street.
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  const rw = 150, rh = rw * road.height / road.width;
+  const y0 = Math.floor(v.minY/rh)*rh;
+  for (let y=y0; y<v.maxY; y+=rh) ctx.drawImage(road, TOWN_CX-rw/2, y, rw, rh);
+  ctx.imageSmoothingEnabled = prev;
+}
+
+// Flat ground decals (grass/cracks/pebbles) laid on the plane, under objects.
+function drawGroundDecalsIso(v) {
+  if (typeof DECALS === 'undefined' || !DECALS.length || typeof TerrainArt === 'undefined') return;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  for (const d of DECALS) {
+    if (d.x < v.minX-60 || d.x > v.maxX+60 || d.y < v.minY-60 || d.y > v.maxY+60) continue;
+    const img = TerrainArt.decals[d.type]; if (!img) continue;
+    const s = 70 * d.scale;
+    ctx.drawImage(img, d.x - s/2, d.y - s/2, s, s);
+  }
+  ctx.imageSmoothingEnabled = prev;
 }
 
 // Placeholder iso building: footprint diamond + two upright faces + flat

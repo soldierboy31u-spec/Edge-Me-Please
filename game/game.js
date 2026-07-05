@@ -22,6 +22,7 @@ const Game = {
   init() {
     generateScenery();
     generateProps();
+    generateDecals();
     this.reset();
   },
 
