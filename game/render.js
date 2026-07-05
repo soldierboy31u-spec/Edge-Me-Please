@@ -699,7 +699,10 @@ function drawLandmarkStructures(ox, oy) {  // legacy unsorted path (DEPTH_SORT o
 function drawLandmarkStructure(lm, ox, oy) {
   {
     const tx=lm.x-ox, ty=lm.y-oy;
-    if (lm.type==='arch') {
+    const drewArt = typeof drawIsoLandmarkArt !== 'undefined' && drawIsoLandmarkArt(lm, ox, oy);
+    if (drewArt) {
+      // fall through to the name plate below, skip the procedural shape
+    } else if (lm.type==='arch') {
       // span of bone between the two leg props
       ctx.save(); ctx.strokeStyle='#d8cdb0'; ctx.lineWidth=16; ctx.lineCap='round';
       ctx.beginPath(); ctx.moveTo(tx-70,ty-30); ctx.quadraticCurveTo(tx,ty-120,tx+70,ty-30); ctx.stroke();
@@ -774,6 +777,9 @@ function drawProps(ox, oy) {          // legacy unsorted path (DEPTH_SORT off)
 }
 function drawProp(p, ox, oy) {
   if (typeof drawIsoPropArt !== 'undefined' && drawIsoPropArt(p, ox, oy)) return;
+  // The Bone Arch art paints its own legs — hide the collision-only boneleg
+  // posts when it's loaded (they stay solid, just invisible).
+  if (p.type==='boneleg' && typeof IsoLandmarks !== 'undefined' && IsoLandmarks.loaded['landmark_bone_arch.png']) return;
   {
     const tx=p.x-ox, ty=p.y-oy;
     // soft contact shadow

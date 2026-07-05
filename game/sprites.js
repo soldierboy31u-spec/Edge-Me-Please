@@ -424,6 +424,55 @@ function drawIsoPropArt(s, ox, oy) {
   return true;
 }
 
+/* ---- Iso landmark art (Tier 2 art tickets — docs/ART_TICKETS.md) ---------
+   Large set-piece PNGs replace the procedural landmark shapes. Keyed by the
+   LANDMARKS entry's `type`. `h` is the on-screen draw height in px; width
+   follows the image aspect. anchorY = fraction down the image that sits on the
+   landmark's ground point (1.0 = image bottom on the point). The mine carries
+   an `openFile` used once its `opened` flag flips (after the dynamite). */
+const ISO_LANDMARK_ART = {
+  arch:    { file: 'landmark_bone_arch.png',   h: 190, anchorY: 1.00 },
+  shrine:  { file: 'landmark_shrine.png',      h: 150, anchorY: 0.99 },
+  wagons:  { file: 'landmark_camp.png',        h: 96,  anchorY: 0.72 }, // flat camp
+  hideout: { file: 'landmark_bone_throne.png', h: 132, anchorY: 0.96 },
+  mine:    { file: 'landmark_mine_closed.png', h: 150, anchorY: 0.92,
+             openFile: 'landmark_mine_open.png' },
+};
+const IsoLandmarks = {
+  loaded: {},   // file -> HTMLImageElement
+  load() {
+    if (!CFG.ISO) return;
+    const files = new Set();
+    for (const def of Object.values(ISO_LANDMARK_ART)) {
+      files.add(def.file); if (def.openFile) files.add(def.openFile);
+    }
+    for (const file of files)
+      Assets.loadImage('lm_' + file, 'assets/iso/landmarks/' + file)
+        .then(img => { if (img) this.loaded[file] = img; });
+  },
+};
+// Draw a landmark's generated art; false -> caller draws the procedural shape.
+function drawIsoLandmarkArt(lm, ox, oy) {
+  const def = ISO_LANDMARK_ART[lm.type];
+  if (!def) return false;
+  const file = (def.openFile && lm.opened) ? def.openFile : def.file;
+  const img = IsoLandmarks.loaded[file];
+  if (!img) return false;
+  const tx = lm.x - ox, ty = lm.y - oy;
+  const drawH = def.h;
+  const drawW = drawH * img.width / img.height;
+  const ay = def.anchorY != null ? def.anchorY : 0.94;
+  ctx.save();
+  // grounding shadow under the footprint
+  ctx.fillStyle = 'rgba(0,0,0,0.24)';
+  ctx.beginPath(); ctx.ellipse(tx, ty, drawW*0.36, drawH*0.11, 0, 0, TAU); ctx.fill();
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, tx - drawW*0.5, ty - drawH*ay, drawW, drawH);
+  ctx.imageSmoothingEnabled = prev;
+  ctx.restore();
+  return true;
+}
+
 /* ---- Debug overlay (RE-ART-014) — off by default ------------------------ */
 function drawSpriteDebug(ctx, player, ox, oy) {
   const a = ChrisSprites.animator; if (!a) return;

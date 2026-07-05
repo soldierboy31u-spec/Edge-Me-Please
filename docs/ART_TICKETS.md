@@ -103,12 +103,12 @@ it tells the wiring side which landmark the file maps to):
 
 > **LANDMARK HEADER** — Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
 
-### [ ] ART-11 — The Bone Arch → `assets/iso/landmarks/landmark_bone_arch.png`
+### [x] ART-11 — The Bone Arch → `assets/iso/landmarks/landmark_bone_arch.png`
 > Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
 >
 > The structure is THE BONE ARCH — a colossal archway made of giant pale bleached rib-bones curving up from both sides and meeting overhead, with a huge horned animal SKULL as the keystone at the very top center. Weathered ivory-and-tan bone, cracked and sun-bleached. The middle of the arch is WIDE OPEN — a clear empty gap between the two bone legs, tall and wide enough to ride a horse straight through. Ominous but cartoon, a monument you can see from across the desert.
 
-### [ ] ART-12 — Collapsed Mine (TWO files) → `assets/iso/landmarks/landmark_mine_closed.png` **and** `assets/iso/landmarks/landmark_mine_open.png`
+### [x] ART-12 — Collapsed Mine (TWO files) → `assets/iso/landmarks/landmark_mine_closed.png` **and** `assets/iso/landmarks/landmark_mine_open.png`
 > This ticket needs TWO images, same mine from the same angle so they can swap in
 > place. Generate the CLOSED version first, then re-use it as an extra reference
 > for the OPEN version so the framing matches.
@@ -123,12 +123,12 @@ it tells the wiring side which landmark the file maps to):
 >
 > The structure is the SAME timber-framed MINE ENTRANCE in the same rocky hillside, from the same angle — but now BLOWN WIDE OPEN by dynamite. The boards are shattered and blasted aside, the mouth is a dark open tunnel leading into blackness, splintered broken timbers lean around the opening, scattered rubble and faint dark scorch marks from the explosion frame the entrance. The rusted rail track now runs into the open tunnel.
 
-### [ ] ART-13 — Desert Shrine → `assets/iso/landmarks/landmark_shrine.png`
+### [x] ART-13 — Desert Shrine → `assets/iso/landmarks/landmark_shrine.png`
 > Isometric video-game LANDMARK, a large set-piece structure, in the exact art style of the attached reference image (match its bold ink outlines, cartoon shading, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single large structure, centered, filling most of the frame. Light from the south-west: south-west faces warm and lit, north-east faces in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow beneath the structure. NO text, letters, or numbers anywhere.
 >
 > The structure is a DESERT BONE SHRINE — a tall totem of stacked animal skulls and long pale bones bound together with old rope and rawhide strips, standing upright like a cairn. It is draped with a few feathers, strings of beads, and small tattered cloth offerings. A ring of small stones and a couple of melted candle stubs sit at its foot. Eerie, sacred, sun-bleached and weather-worn.
 
-### [ ] ART-14 — Ambush-Camp centerpiece → `assets/iso/landmarks/landmark_camp.png`
+### [x] ART-14 — Ambush-Camp centerpiece → `assets/iso/landmarks/landmark_camp.png`
 > NOTE: the ring of covered wagons around this is already done (ART-10 prop,
 > placed 6× in a circle). THIS ticket is only the small centerpiece that sits in
 > the MIDDLE of that wagon ring — so keep it compact, not another wagon.
@@ -137,7 +137,7 @@ it tells the wiring side which landmark the file maps to):
 >
 > The object is an ABANDONED BANDIT CAMPFIRE — a ring of blackened stones around a dead fire of charred logs and grey ash, with a cast-iron cooking pot hanging from a black iron tripod over the cold fire. A rolled-up bedroll and a battered tin cup lie beside it, and one upturned crate serves as a seat. It reads as an ambush camp whose owners just fled.
 
-### [ ] ART-15 — The Bone Throne → `assets/iso/landmarks/landmark_bone_throne.png`
+### [x] ART-15 — The Bone Throne → `assets/iso/landmarks/landmark_bone_throne.png`
 > NOTE: the ring of rock spires walling the hideout is already done (ART placeholder
 > 'spire' props). THIS ticket is only the THRONE that sits at the center of that
 > bowl — Buckshot Benny's seat.

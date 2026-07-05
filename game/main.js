@@ -70,6 +70,7 @@ ChrisSprites.init();   // sets up the animator; loads sheets only if USE_SPRITES
 HorseSprites.load();   // standalone horse idle sheet (procedural fallback if missing)
 IsoBuildings.load();   // M8 iso building art (placeholder diamonds until loaded)
 IsoProps.load();       // Tier-1 prop art (procedural scenery until loaded)
+IsoLandmarks.load();   // Tier-2 landmark art (procedural landmarks until loaded)
 BanditSprites.load();  // bandit idle/walk sheets (procedural bandits until loaded)
 Game.init();
 fit();
