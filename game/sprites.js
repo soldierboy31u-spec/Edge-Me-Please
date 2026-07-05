@@ -383,6 +383,8 @@ const ISO_PROP_ART = {
     { file: 'prop_cactus_saguaro.png',    hScale: 5.2 },  // tall & thin
     { file: 'prop_cactus_pricklypear.png', hScale: 3.0 },  // low & wide clump
   ],
+  rock: [ { file: 'prop_rocks.png',    hScale: 2.6 } ],   // low boulder cluster
+  tree: [ { file: 'prop_deadtree.png', hScale: 3.6 } ],   // tall gnarled snag
 };
 const IsoProps = {
   loaded: {},   // file -> HTMLImageElement

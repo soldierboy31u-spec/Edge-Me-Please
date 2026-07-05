@@ -39,12 +39,12 @@ already baked into each prompt below, no assembly needed)
 >
 > The object is a low clumpy PRICKLY PEAR CACTUS — a cluster of flat oval pads growing from one base, dusty sage-green with ink-outlined pads, a couple of small red fruits on the upper pads. Low and wide, knee-height.
 
-### [ ] ART-03 — Boulder cluster → `assets/iso/props/prop_rocks.png`
+### [x] ART-03 — Boulder cluster → `assets/iso/props/prop_rocks.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a small CLUSTER OF DESERT BOULDERS — one large weathered sandstone rock with two smaller rocks leaning against it, warm tan and grey-brown with cracks and strata lines, sun-lit on the left faces.
 
-### [ ] ART-04 — Dead tree → `assets/iso/props/prop_deadtree.png`
+### [x] ART-04 — Dead tree → `assets/iso/props/prop_deadtree.png`
 > Isometric video-game environment prop in the exact art style of the attached reference image (match its palette, ink outlines, and lighting). TRUE 2:1 isometric camera like Diablo. ONE single object, centered, filling most of the frame. Light from the south-west: left side warm and lit, right side in cool shadow. Hand-drawn 2D cartoon western, bold dark ink outlines, warm sepia palette of dusty browns and desert tones. BACKGROUND: fully transparent; if not possible, flat solid pure-magenta #FF00FF — never white, no gradient. NO ground, dirt patch, base, or cast shadow under the object. NO text anywhere.
 >
 > The object is a gnarled DEAD DESERT TREE — bare twisted branches, no leaves, bleached grey-brown bark with deep cracks, one broken limb hanging. Spooky but cartoon, like it has a story.
