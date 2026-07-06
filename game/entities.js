@@ -578,6 +578,7 @@ class Enemy {
     this.r=CFG.ENEMY_RADIUS;
     if (kind==='enforcer') { this.hp=CFG.ENFORCER_HP; this.maxhp=CFG.ENFORCER_HP; this.speed=CFG.ENFORCER_SPEED; this.dmg=CFG.ENFORCER_DMG; this.r=16; }
     else if (kind==='lawman') { this.hp=CFG.LAWMAN_HP; this.maxhp=CFG.LAWMAN_HP; this.speed=CFG.LAWMAN_SPEED; this.dmg=CFG.ENEMY_BULLET_DMG+3; }
+    else if (kind==='demon') { this.hp=CFG.DEMON_HP; this.maxhp=CFG.DEMON_HP; this.speed=CFG.DEMON_SPEED; this.dmg=CFG.DEMON_DMG; this.r=13; }
     else { this.hp=CFG.ENEMY_HP; this.maxhp=CFG.ENEMY_HP; this.speed=CFG.ENEMY_SPEED; this.dmg=CFG.ENEMY_BULLET_DMG; }
     // Apply difficulty scaling (Easy = ×1, the original M1 feel).
     const D = DIFFICULTY[Game.difficulty];
@@ -745,6 +746,8 @@ class Enemy {
       ? {coat:'#3a4a6a', hat:'#1c2436', skin:'#caa07a'}
       : this.kind==='enforcer'
       ? {coat:'#5a2a2a', hat:'#2a1414', skin:'#b89070'}
+      : this.kind==='demon'
+      ? {coat:'#7a2418', hat:'#3a1410', skin:'#a03828'}   // cracked-clay red fallback
       : {coat:'#4a3a28', hat:'#241a10', skin:'#c0a080'};
     // Attack tell — a charging aim line the player can read and dodge.
     if (this.windup>0) {
@@ -762,10 +765,13 @@ class Enemy {
       ctx.beginPath(); ctx.arc(tx+Math.cos(this.aim)*22, ty+Math.sin(this.aim)*22, 2+charge*2, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    // Bandit/lawman/enforcer use their sprite sheets when loaded; other kinds
+    // Bandit/lawman/enforcer use their sprite sheets when loaded; the demon
+    // uses its single-pose sprite (mirrors to face its aim); other kinds
     // (and the fallback) keep the procedural art with their palette identity.
-    const drewSprite = (this.kind==='bandit' || this.kind==='lawman' || this.kind==='enforcer')
-      && CFG.USE_SPRITES && typeof drawEnemySprite !== 'undefined' && drawEnemySprite(ctx, this, ox, oy);
+    const drewSprite = CFG.USE_SPRITES && (this.kind==='demon'
+      ? (typeof drawDemonSprite !== 'undefined' && drawDemonSprite(ctx, this, ox, oy))
+      : ((this.kind==='bandit' || this.kind==='lawman' || this.kind==='enforcer')
+          && typeof drawEnemySprite !== 'undefined' && drawEnemySprite(ctx, this, ox, oy)));
     if (!drewSprite) drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0, palette);
     // Roped/stunned — spinning stars over the head
     if (this.stun>0) {

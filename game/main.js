@@ -92,6 +92,7 @@ IsoLandmarks.load();   // Tier-2 landmark art (procedural landmarks until loaded
 EnemySprites.load();   // bandit/lawman/enforcer sheets (procedural until loaded)
 DarrylSprite.load();   // camp NPC single-frame sprite (procedural until loaded)
 BossSprite.load();     // Buckshot Benny single-pose sprite (procedural until loaded)
+DemonSprite.load();    // desert demon single-pose sprite (procedural until loaded)
 TerrainArt.load();     // Tier-3 sand tile + road + ground decals (iso only)
 Game.init();
 fit();

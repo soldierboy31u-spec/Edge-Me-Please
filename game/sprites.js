@@ -423,6 +423,47 @@ function drawBossSprite(ctx, e, ox, oy) {
   return true;
 }
 
+/* ---- Desert demon — single-pose enemy sprite (M9 demon arc) --------------
+   Grok-drawn cartoon devil (cracked clay skin, crooked horns, rusty
+   six-shooter). Single hero pose like Benny; the art faces LEFT, so it
+   mirrors to face wherever the demon is aiming. */
+const DemonSprite = {
+  img: null, ink: null, red: null,
+  load() {
+    if (!CFG.USE_SPRITES) return;
+    Assets.loadImage('demon', 'assets/characters/Demon/demon.png').then((img) => {
+      if (img) { this.img = img;
+        if (CFG.FX_OUTLINE) this.ink = EnemySprites._tint(img, '#1a120a');
+        this.red = EnemySprites._tint(img, '#e04030'); }
+    });
+  },
+};
+// Draw the demon sprite feet-anchored; false -> procedural fallback.
+function drawDemonSprite(ctx, e, ox, oy) {
+  const img = DemonSprite.img; if (!img) return false;
+  const scale = CFG.SPRITE_DRAW_SCALE;                // bandit-sized
+  const tx = e.x - ox;
+  const dx = tx - 64*scale;
+  const dy = (e.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - 108*scale;
+  const dw = img.width*scale, dh = img.height*scale;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  ctx.save();
+  // Art faces left — mirror around the anchor when aiming right on screen.
+  if (Math.cos(isoScreenAngle(e.aim)) > 0) { ctx.translate(tx*2, 0); ctx.scale(-1, 1); }
+  if (CFG.FX_OUTLINE && DBG.outline && DemonSprite.ink) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.drawImage(DemonSprite.ink, dx+ix, dy+iy, dw, dh);
+    ctx.restore();
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  if (e.hurtFlash > 0 && DemonSprite.red) {
+    ctx.globalAlpha = 0.5; ctx.drawImage(DemonSprite.red, dx, dy, dw, dh);
+  }
+  ctx.restore();
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
 /* ---- Iso building art (M8 Tier 2) ---------------------------------------
    Generated iso PNGs (docs/ISO_BUILDING_SPEC.md) replace the placeholder
    diamonds. Each entry anchors the art's ground-footprint centre onto the

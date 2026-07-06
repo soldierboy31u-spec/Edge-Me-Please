@@ -84,6 +84,12 @@ const CFG = {
   ENFORCER_SPEED: 150,
   ENFORCER_DMG: 16,
 
+  // Desert demons (M9 demon arc) — fast, wiry skirmishers from the haunted
+  // flats past the Bone Arch. Less meat than a bandit, harder to pin down.
+  DEMON_HP: 55,
+  DEMON_SPEED: 175,
+  DEMON_DMG: 13,
+
   // Lawmen (spawned by wanted level)
   LAWMAN_HP: 90,
   LAWMAN_SPEED: 165,

@@ -56,6 +56,14 @@ const Game = {
     // Wagon circle ambush — a couple of bandits holed up out in the flats.
     for (let i=0;i<2;i++) this.enemies.push(new Enemy(LANDMARK_POS.wagons.x+rand(-90,90), LANDMARK_POS.wagons.y+rand(-90,90), 'bandit'));
 
+    // M9 teaser: a pack of desert demons prowls the haunted flats past the
+    // Bone Arch — first taste of the demon arc, well away from town and camp.
+    for (let i=0;i<3;i++) {
+      this.enemies.push(new Enemy(
+        clamp(LANDMARK_POS.arch.x + 420 + rand(-110,110), 100, CFG.WORLD_W-100),
+        clamp(LANDMARK_POS.arch.y - 160 + rand(-110,110), 100, CFG.WORLD_H-100), 'demon'));
+    }
+
     // Townsfolk wandering the square.
     for (let i=0;i<5;i++) this.townsfolk.push(new Townsfolk(TOWN_CX+rand(-300,300), TOWN_CY+rand(-300,300)));
 
