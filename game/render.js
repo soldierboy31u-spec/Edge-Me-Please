@@ -222,17 +222,17 @@ function drawFilmFX() {
   if (!sepia && !vign && !grain) return;
   if (!_vignetteCv) _initFilmFX();
   ctx.save();
-  // Warm sepia wash
+  // Warm sepia wash (alpha rides the adaptive fade so tier changes ease in/out)
   if (sepia) {
     ctx.globalCompositeOperation='multiply';
-    ctx.globalAlpha = CFG.FX_SEPIA;
+    ctx.globalAlpha = CFG.FX_SEPIA * DBG.washFade;
     ctx.fillStyle = '#e0b070';
     ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
     ctx.globalCompositeOperation='source-over';
   }
   // Vignette
   if (vign) {
-    ctx.globalAlpha = CFG.FX_VIGNETTE;
+    ctx.globalAlpha = CFG.FX_VIGNETTE * DBG.washFade;
     ctx.drawImage(_vignetteCv, 0, 0);
   }
   // Crawling grain — cycle tiles + jitter the offset each frame.
@@ -240,7 +240,7 @@ function drawFilmFX() {
   // single biggest frame cost). 'source-over' is near-free and, at this low
   // alpha, visually near-identical. Tunable via CFG.FX_GRAIN_BLEND.
   if (grain) {
-    ctx.globalAlpha = CFG.FX_GRAIN;
+    ctx.globalAlpha = CFG.FX_GRAIN * DBG.grainFade;
     ctx.globalCompositeOperation = CFG.FX_GRAIN_BLEND || 'source-over';
     const cv = _grainCvs[Math.floor(Game.time*24)%3];
     const jx = ((Game.time*97)%1)*192, jy = ((Game.time*61)%1)*192;
@@ -1103,11 +1103,17 @@ function drawReticle() {
 
 function drawLightingTint() {
   // Gentle warm/cool wash that drifts over time — purely atmospheric.
+  // Colour lerps continuously through the cycle (the old hard warm/cool
+  // switch at the midpoint read as an instant night->day flip), and the
+  // alpha rides the adaptive-quality fade so tier changes ease in/out.
   const warm = (Math.sin(Game.dayPhase*TAU)*0.5+0.5);
+  const r = Math.round(lerp(48,  255, warm));
+  const g = Math.round(lerp(80,  176, warm));
+  const b = Math.round(lerp(160,  96, warm));
   ctx.save();
   ctx.globalCompositeOperation='overlay';
-  ctx.globalAlpha=0.12;
-  ctx.fillStyle = warm>0.5 ? '#ffb060' : '#3050a0';
+  ctx.globalAlpha = 0.12 * DBG.washFade;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
   ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
   ctx.restore();
   // Player hurt red flash

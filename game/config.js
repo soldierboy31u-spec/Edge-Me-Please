@@ -172,8 +172,14 @@ const DBG = {
   // Adaptive quality: measures real FPS and sheds the priciest full-screen FX
   // on slow hardware. tier 2 = full look, 1 = drop grain, 0 = drop all washes.
   auto: true, tier: 2,
+  // Smooth 0..1 multipliers the renderer scales its wash/grain alphas by —
+  // a tier change FADES over ~1s instead of snapping (the hard cut read as a
+  // sudden night->day flip). At ~0 the draw is skipped entirely (the saving).
+  washFade: 1, grainFade: 1,
+  _upStreak: 0, _retryAt: [0,0,0], _retryDelay: [0,6,6], _sec: 0,
   frame(now) {                               // called once per rAF from main loop
     const dt = this._last ? now - this._last : 16; this._last = now;
+    this._sec = now / 1000;
     if (dt > this._worst) this._worst = dt;
     this._acc += dt; this._n++;
     if (this._acc >= 400) {
@@ -181,15 +187,31 @@ const DBG = {
       this.avgMs = +(this._acc / this._n).toFixed(1);
       this.worstMs = +this._worst.toFixed(1);
       this._acc = 0; this._n = 0; this._worst = 0;
-      if (this.auto) {                       // hysteresis: >~45fps ok, <~33fps shed
-        if (this.avgMs > 30 && this.tier > 0) this.tier--;
-        else if (this.avgMs < 22 && this.tier < 2) this.tier++;
-      }
+      if (this.auto) this._retier();
     }
+    // Ease the fades toward the tier targets (~1s to settle).
+    const k = 1 - Math.exp(-dt * 0.003);
+    const wT = (!this.auto || this.tier >= 1) ? 1 : 0;
+    const gT = (!this.auto || this.tier >= 2) ? 1 : 0;
+    this.washFade  += (wT - this.washFade)  * k;
+    this.grainFade += (gT - this.grainFade) * k;
   },
-  // effective FX flags = manual toggle AND the adaptive tier allows it
-  fxGrain() { return this.grain && (!this.auto || this.tier >= 2); },
-  fxWash()  { return (!this.auto || this.tier >= 1); },   // sepia/vignette/tint
+  // Shed fast, climb back slow. Turning FX off makes frames fast, which used
+  // to climb the tier right back and strobe the washes on borderline hardware
+  // — so a tier that proved too slow books a retry timeout that doubles each
+  // time it fails, and climbing needs 2s of sustained fast frames.
+  _retier() {
+    if (this.avgMs > 31 && this.tier > 0) {
+      this._retryAt[this.tier] = this._sec + this._retryDelay[this.tier];
+      this._retryDelay[this.tier] = Math.min(60, this._retryDelay[this.tier] * 2);
+      this.tier--; this._upStreak = 0;
+    } else if (this.avgMs < 19 && this.tier < 2 && this._sec >= this._retryAt[this.tier + 1]) {
+      if (++this._upStreak >= 5) { this.tier++; this._upStreak = 0; }
+    } else this._upStreak = 0;
+  },
+  // effective FX flags = manual toggle AND the adaptive fade is still visible
+  fxGrain() { return this.grain && this.grainFade > 0.02; },
+  fxWash()  { return this.washFade > 0.02; },   // sepia/vignette/tint
 };
 
 // Difficulty modes. Multipliers scale enemy stats off the base CFG values.
