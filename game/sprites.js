@@ -423,6 +423,41 @@ function drawBossSprite(ctx, e, ox, oy) {
   return true;
 }
 
+/* ---- OLD HUNGER — final boss sprite (M10, single front pose) --------------
+   The thing that wore Benny: a tar colossus with ember cracks, drawn ~2x a
+   bandit. Puddle base sits on the ground line; billboards front-on. */
+const FinalBossSprite = {
+  img: null, ink: null, red: null,
+  load() {
+    if (!CFG.USE_SPRITES) return;
+    Assets.loadImage('finalboss', 'assets/characters/Boss/finalboss.png').then((img) => {
+      if (img) { this.img = img;
+        if (CFG.FX_OUTLINE) this.ink = EnemySprites._tint(img, '#0a0604');
+        this.red = EnemySprites._tint(img, '#e04030'); }
+    });
+  },
+};
+// Draw feet-anchored; false -> caller's procedural fallback.
+function drawFinalBossSprite(ctx, e, ox, oy) {
+  const img = FinalBossSprite.img; if (!img) return false;
+  const scale = CFG.SPRITE_DRAW_SCALE * 1.9;
+  const dx = (e.x - ox) - 64*scale;
+  const dy = (e.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - 108*scale;
+  const dw = img.width*scale, dh = img.height*scale;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  if (CFG.FX_OUTLINE && DBG.outline && FinalBossSprite.ink) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.drawImage(FinalBossSprite.ink, dx+ix, dy+iy, dw, dh);
+    ctx.restore();
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  if (e.hurtFlash > 0 && FinalBossSprite.red) {
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.drawImage(FinalBossSprite.red, dx, dy, dw, dh); ctx.restore();
+  }
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
 /* ---- Desert demon — single-pose enemy sprite (M9 demon arc) --------------
    Grok-drawn cartoon devil (cracked clay skin, crooked horns, rusty
    six-shooter). Single hero pose like Benny; the art faces LEFT, so it

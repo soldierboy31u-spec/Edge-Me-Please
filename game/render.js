@@ -1247,7 +1247,8 @@ function drawHUD() {
     const bw=420, bh=14, bx=CFG.VIEW_W/2-bw/2, by=CFG.VIEW_H-44;
     drawPanel(bx-6, by-24, bw+12, bh+32);
     ctx.fillStyle='#e8c8a0'; ctx.font='bold 12px Georgia'; ctx.textAlign='center';
-    ctx.fillText('☠  BUCKSHOT BENNY' + (boss.phase===3?'  —  DEMON-TOUCHED':''), CFG.VIEW_W/2, by-9);
+    ctx.fillText('☠  ' + (boss.title || 'BUCKSHOT BENNY')
+      + (boss.phase===3 ? '  —  ' + (boss.p3Label || 'DEMON-TOUCHED') : ''), CFG.VIEW_W/2, by-9);
     ctx.fillStyle='#2a1414'; ctx.fillRect(bx,by,bw,bh);
     const f = clamp(boss.hp/boss.maxhp,0,1);
     const bg = ctx.createLinearGradient(bx,0,bx+bw,0);

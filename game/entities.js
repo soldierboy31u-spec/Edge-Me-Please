@@ -991,6 +991,211 @@ class Boss extends Enemy {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   M10 — OLD HUNGER (final boss). The thing that wore Benny, unhosted: a tar
+   colossus from under the mine. Reuses the Enemy core for steering/volleys;
+   layers its own kit on top:
+     Always : tar-spit fans (slow fat globs), summons devil brood, heavy
+              contact swat, near-total knockback resist.
+     Phase 2: sinks into the ground and erupts under the player — the puddle
+              TRACKS, then LOCKS. The lock is the dodge window.
+     Phase 3: burning — everything faster, ember shed, brighter aura.
+   --------------------------------------------------------------------------- */
+class FinalBoss extends Enemy {
+  constructor(x, y) {
+    super(x, y, 'bandit');
+    this.kind = 'boss';
+    this.title = 'OLD HUNGER';
+    this.p3Label = 'BURNING';
+    const D = DIFFICULTY[Game.difficulty];
+    this.hp = CFG.FBOSS_HP * D.hp; this.maxhp = this.hp;
+    this.speed = CFG.FBOSS_SPEED; this.r = CFG.FBOSS_RADIUS;
+    this.dmg = CFG.FBOSS_SPIT_DMG * D.dmg;
+    this.phase = 1;
+    this.summonTimer = CFG.FBOSS_SUMMON_CD * 0.5;
+    this.sinkTimer = CFG.FBOSS_SINK_CD * 0.7;
+    this.submerged = 0;      // >0 = under the floor (untargetable)
+    this.puddle = null;      // {x,y,t,locked} eruption telegraph
+    this.swatTimer = 0;
+  }
+  applyKnockback(ang, force) { super.applyKnockback(ang, force*0.15); }   // you can't shove tar
+  takeDamage(d) { if (this.submerged > 0) return; super.takeDamage(d); }  // can't shoot the floor
+
+  currentPhase() {
+    const f = this.hp / this.maxhp;
+    return f > 2/3 ? 1 : f > 1/3 ? 2 : 3;
+  }
+
+  shoot(player) {
+    // Tar-spit volley — a fan of slow, fat globs.
+    this.recoil = 1;
+    const mx = this.x+Math.cos(this.aim)*30, my = this.y+Math.sin(this.aim)*30;
+    const n = CFG.FBOSS_SPIT_N + (this.phase===3 ? 2 : 0);
+    for (let i=0;i<n;i++) {
+      const a = this.aim + (i/(n-1) - 0.5) * CFG.FBOSS_SPIT_ARC;
+      const b = new Bullet(mx,my,a,CFG.ENEMY_BULLET_SPEED*0.62,this.dmg,false);
+      b.r = 5;   // fat glob
+      Game.bullets.push(b);
+    }
+    Camera.addShake(2);
+    Audio.enemyShot();
+    this._volleyCd = true;
+  }
+
+  summonBrood() {
+    const live = Game.enemies.filter(e=>e.kind==='demon' && !e.dead && e.missionTag===this.missionTag).length;
+    let n = 0;
+    for (let i=0; i<2 && live+i < CFG.FBOSS_BROOD_MAX; i++, n++) {
+      const e = new Enemy(clamp(this.x+rand(-140,140),100,CFG.WORLD_W-100),
+                          clamp(this.y+rand(-140,140),100,CFG.WORLD_H-100), 'demon');
+      e.missionTag = this.missionTag;
+      Game.enemies.push(e);
+    }
+    if (n>0) Game.flashMsg('Tar boils off its back and stands up SNARLING — brood!');
+  }
+
+  update(dt, player) {
+    if (this.stun > 0.3) this.stun = 0.3;   // rope means nothing to tar
+
+    const ph = this.currentPhase();
+    if (ph !== this.phase) {
+      this.phase = ph;
+      Camera.addShake(12);
+      Audio.explosion();
+      this.summonBrood();
+      Game.flashMsg(ph===2
+        ? 'It SINKS — the ground goes soft as spit. Watch your feet!'
+        : 'The cracks flare white-hot. It\'s burning itself up to take you with it.');
+    }
+
+    // Submerged: the puddle tracks, locks, then he erupts out of it.
+    if (this.submerged > 0) {
+      this.submerged -= dt;
+      const pd = this.puddle;
+      if (pd) {
+        pd.t += dt;
+        if (pd.t < CFG.FBOSS_SINK_TRACK) { pd.x = player.x; pd.y = player.y; }
+        else pd.locked = true;
+      }
+      if (this.submerged <= 0 && pd) {
+        this.x = clamp(pd.x, this.r, CFG.WORLD_W-this.r);
+        this.y = clamp(pd.y, this.r, CFG.WORLD_H-this.r);
+        this.resolveCollisions();
+        Camera.addShake(10);
+        Audio.explosion();
+        for (let i=0;i<16;i++) Game.particles.push(new Particle(this.x+rand(-20,20), this.y+rand(-10,6),
+          rand(-160,160), rand(-240,-40), rand(0.3,0.7), i%3?'#141010':'#ff8a30', rand(3,7), 300));
+        if (!player.dead && dist(this.x,this.y,player.x,player.y) < CFG.FBOSS_ERUPT_R + player.r) {
+          player.takeDamage(CFG.FBOSS_ERUPT_DMG * DIFFICULTY[Game.difficulty].dmg);
+          const a = angTo(this.x,this.y,player.x,player.y);
+          player.vx += Math.cos(a)*480; player.vy += Math.sin(a)*480;
+        }
+        this.puddle = null;
+      }
+      if (this.hurtFlash>0) this.hurtFlash-=dt;
+      return;
+    }
+
+    super.update(dt, player);
+    if (this._volleyCd) { this.fireTimer *= CFG.FBOSS_FIRE_MULT; this._volleyCd = false; }
+
+    const engaged = (this.state==='attack' || this.state==='chase') && !player.dead;
+    const fast = this.phase===3 ? 0.7 : 1;   // phase 3 shortens every cooldown
+
+    // Brood summons while engaged.
+    if (engaged) {
+      this.summonTimer -= dt;
+      if (this.summonTimer <= 0) {
+        this.summonTimer = CFG.FBOSS_SUMMON_CD * fast;
+        this.summonBrood();
+      }
+    }
+    // Phase 2+: the sink attack.
+    if (this.phase >= 2 && engaged && this.stun<=0) {
+      this.sinkTimer -= dt;
+      if (this.sinkTimer <= 0) {
+        this.sinkTimer = CFG.FBOSS_SINK_CD * fast;
+        this.submerged = CFG.FBOSS_SINK_TRACK + CFG.FBOSS_SINK_LOCK;
+        this.puddle = { x: player.x, y: player.y, t: 0, locked: false };
+        Game.flashMsg('The thing melts into the hardpan — MOVE!');
+      }
+    }
+    // Contact swat when hugged.
+    if (this.swatTimer > 0) this.swatTimer -= dt;
+    if (engaged && this.swatTimer<=0 && dist(this.x,this.y,player.x,player.y) < this.r+player.r+8) {
+      this.swatTimer = 1.2;
+      player.takeDamage(CFG.FBOSS_SWAT_DMG * DIFFICULTY[Game.difficulty].dmg);
+      const a = angTo(this.x,this.y,player.x,player.y);
+      player.vx += Math.cos(a)*420; player.vy += Math.sin(a)*420;
+      Camera.addShake(6);
+    }
+    // Phase 3: constant ember shed.
+    if (this.phase===3 && Math.random()<0.5)
+      Game.particles.push(new Particle(this.x+rand(-18,18), this.y+rand(-24,0),
+        rand(-20,20), rand(-70,-20), rand(0.3,0.6), '#ff8a30', rand(2,4)));
+  }
+
+  render(ctx, ox, oy) {
+    const tx=this.x-ox, ty=this.y-oy;
+    // Eruption telegraph — tracking puddle, locks orange->red before the pop.
+    if (this.puddle) {
+      const pd = this.puddle;
+      const px=pd.x-ox, py=pd.y-oy;
+      const g = clamp(pd.t/(CFG.FBOSS_SINK_TRACK+CFG.FBOSS_SINK_LOCK), 0, 1);
+      const rr = 18 + g*(CFG.FBOSS_ERUPT_R-18);
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = pd.locked ? '#1a0c08' : '#241812';
+      ctx.beginPath(); ctx.ellipse(px, py, rr, rr*0.45, 0, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = pd.locked ? '#ff5a2a' : '#c8742a';
+      ctx.lineWidth = 2; ctx.setLineDash([7,5]);
+      ctx.beginPath(); ctx.ellipse(px, py, CFG.FBOSS_ERUPT_R, CFG.FBOSS_ERUPT_R*0.45, 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+    if (this.submerged > 0) return;   // he IS the floor right now
+
+    // Big shadow — a tar colossus blots out a lot of sun.
+    ctx.fillStyle='rgba(0,0,0,0.42)';
+    ctx.beginPath(); ctx.ellipse(tx,ty+14,26,10,0,0,TAU); ctx.fill();
+    // Phase-3 burning aura
+    if (this.phase===3) {
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha = 0.30 + 0.15*Math.sin(Game.time*8);
+      const g=ctx.createRadialGradient(tx,ty,6,tx,ty,54);
+      g.addColorStop(0,'#c84a18'); g.addColorStop(1,'rgba(140,40,10,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(tx,ty,54,0,TAU); ctx.fill();
+      ctx.restore();
+    }
+    const drewSprite = typeof drawFinalBossSprite !== 'undefined' && drawFinalBossSprite(ctx, this, ox, oy);
+    if (!drewSprite) {
+      // fallback: a black mass with ember eyes
+      ctx.save();
+      ctx.fillStyle = this.hurtFlash>0 ? '#5a1a12' : '#16100c';
+      ctx.beginPath(); ctx.ellipse(tx,ty-16,26,32,0,0,TAU); ctx.fill();
+      ctx.fillStyle='#ff9a30';
+      ctx.beginPath(); ctx.arc(tx-8,ty-30,3.4,0,TAU); ctx.arc(tx+8,ty-30,3.4,0,TAU); ctx.fill();
+      ctx.restore();
+    }
+    // Windup aim tell (same language as regular enemies, thicker)
+    if (this.windup>0) {
+      const charge = 1 - this.windup/CFG.ENEMY_WINDUP;
+      ctx.save();
+      ctx.globalAlpha = 0.35 + charge*0.45;
+      ctx.strokeStyle='#ff5a3a'; ctx.lineWidth=2.5; ctx.setLineDash([6,5]);
+      const len = 40 + charge*CFG.ENEMY_SHOOT_RANGE*0.5;
+      ctx.beginPath(); ctx.moveTo(tx,ty);
+      ctx.lineTo(tx+Math.cos(this.aim)*len, ty+Math.sin(this.aim)*len); ctx.stroke();
+      ctx.setLineDash([]); ctx.restore();
+    }
+    // Name tag (big HP bar lives in the HUD)
+    ctx.fillStyle='rgba(20,10,6,0.75)'; ctx.font='bold 11px Georgia'; ctx.textAlign='center';
+    const w=ctx.measureText(this.title).width+10;
+    ctx.fillRect(tx-w/2, ty-64, w, 15);
+    ctx.fillStyle='#ffb060'; ctx.fillText(this.title, tx, ty-53);
+  }
+}
+
 class Townsfolk {
   constructor(x,y) {
     this.x=x; this.y=y; this.r=12; this.dead=false;

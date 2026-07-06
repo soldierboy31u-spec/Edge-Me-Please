@@ -100,13 +100,14 @@ const Missions = {
   marker: null,       // {x,y} world-space objective marker (minimap + chevron)
   m2Supplies: false,  // carrying the recovered supplies (Bone-Dry Job)
 
-  order: ['m1','m2','m3','m4','m5'],
+  order: ['m1','m2','m3','m4','m5','m6'],
   defs: {
     m1: { num:'I',   title:'WELCOME TO HICKSVILLE' },
     m2: { num:'II',  title:'THE BONE-DRY JOB' },
     m3: { num:'III', title:'TROUBLE UNDER THE CHAPEL' },
     m4: { num:'IV',  title:'THE RATTLEBONE GANG' },
     m5: { num:'V',   title:'WHAT THE DESERT SPAT OUT' },
+    m6: { num:'VI',  title:'THE THING BELOW' },
   },
   // Where the Bone-Dry ambush happens (the dry riverbed landmark).
   m2Site: { x: TOWN_CX-200, y: TOWN_CY-1250 },
@@ -163,6 +164,9 @@ const Missions = {
     } else if (id==='m5') {
       Game.flashMsg('Darryl: "Whatever wore Benny like a Sunday suit is still out there. Folks see lights past the arch at night. Go look — and Chris, don\'t let it look back."');
       this.setObjective('Ride to the demon ground past the Bone Arch', this.m5Site.x, this.m5Site.y);
+    } else if (id==='m6') {
+      Game.flashMsg('Darryl: "You saw the sigil. It\'s the mine, Chris. It was ALWAYS the mine. Go down and end what Benny opened. And Chris... come back."');
+      this.setObjective('Return to the old mine', LANDMARK_POS.mine.x, LANDMARK_POS.mine.y);
     }
   },
 
@@ -195,6 +199,9 @@ const Missions = {
       if (this.active==='m5' && this.stage===4)
         return { label:'Tell Darryl what crawled out', act:()=> this.complete('m5',
           'Darryl: "Same sigil as the mine..." He stares east a long while. "They ain\'t comin\' FROM the desert, Chris. They\'re comin\' from UNDER it."', CFG.M5_REWARD) };
+      if (this.active==='m6' && this.stage===2)
+        return { label:'Tell Darryl it\'s over', act:()=> this.complete('m6',
+          'Darryl looks at the dawn a long time. "Ain\'t no full redemption in this desert, Chris. But tonight... tonight comes close."', CFG.M6_REWARD) };
       if (!this.active) {
         const nid = this.next();
         if (nid) return { label:'Talk to Darryl', act:()=> this.start(nid) };
@@ -305,6 +312,11 @@ const Missions = {
       this.stage = 3;
       Game.flashMsg('Quiet. In the settling dust you spot something scorched into the ground...');
       this.setObjective('Examine the scorched sigil', this.m5Site.x, this.m5Site.y);
+    } else if (this.active==='m6' && this.stage===1 && e.kind==='boss') {
+      this.stage = 2;
+      Game.nightTarget = 0;   // the sigils crack and go dark; dawn takes the desert back
+      Game.flashMsg('The tar burns away from the inside out. Across the flats, the sigils crack and go DARK.');
+      this.setObjective('Tell Darryl it\'s over', DARRYL.x, DARRYL.y);
     }
   },
   onBoardRead() {
@@ -364,6 +376,19 @@ const Missions = {
         this.setObjective('Put down the demon pack (4 left)', this.m5Site.x, this.m5Site.y);
         Camera.addShake(5);
       }
+    } else if (this.active==='m6' && this.stage===0) {
+      const mn = LANDMARK_POS.mine;
+      if (dist(p.x,p.y,mn.x,mn.y) < CFG.MISSION_ARRIVE_DIST - 60) {
+        this.stage = 1;
+        Game.nightTarget = 1;   // the mine drinks the daylight
+        const fb = new FinalBoss(mn.x+90, mn.y+70);
+        fb.missionTag = 'm6';
+        Game.enemies.push(fb);
+        this.showCard('THE THING BELOW', 'OLD HUNGER', '"You dug too deep, little king."');
+        Game.flashMsg('The mine exhales cold air — and the dark comes UP to meet you.');
+        this.setObjective('End what Benny opened', mn.x, mn.y);
+        Camera.addShake(9);
+      }
     }
 
     // Kill-stage markers track the nearest surviving target (or Benny himself).
@@ -377,7 +402,7 @@ const Missions = {
       }
       if (best) this.marker = { x: best.x, y: best.y };
     }
-    if (this.active==='m4' && this.stage===2) {
+    if ((this.active==='m4' && this.stage===2) || (this.active==='m6' && this.stage===1)) {
       const boss = Game.enemies.find(e=>e.kind==='boss' && !e.dead);
       if (boss) this.marker = { x: boss.x, y: boss.y };
     }

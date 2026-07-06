@@ -430,7 +430,7 @@ const Game = {
       // fast shots can't skip over a target between frames on slow machines.
       if (b.friendly) {
         for (const e of this.enemies) {
-          if (e.dead) continue;
+          if (e.dead || e.submerged > 0) continue;   // can't shoot what's under the floor
           const rr = e.r + b.r;
           // Iso body forgiveness: the sprite's torso stands up-screen from the
           // feet circle, which in world space is the north-west diagonal. A

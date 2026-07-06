@@ -136,6 +136,24 @@ const CFG = {
   DEMON_NIGHT_MAX: 4,        // wild demons prowling the flats per night
   DEMON_SPAWN_COOLDOWN: 7,   // s between wild demon spawns while it's night
 
+  // --- M10 Finale: OLD HUNGER (the thing below the mine) ---
+  M6_REWARD: 300,            // ending what Benny opened pays best of all
+  FBOSS_HP: 950,
+  FBOSS_SPEED: 82,           // a slow, inevitable walk
+  FBOSS_RADIUS: 26,
+  FBOSS_SPIT_DMG: 9,         // per tar glob
+  FBOSS_SPIT_N: 5,           // globs per volley (+2 in phase 3)
+  FBOSS_SPIT_ARC: 0.55,      // volley spread (radians)
+  FBOSS_FIRE_MULT: 1.7,      // stretches the base fire cooldown after a volley
+  FBOSS_SUMMON_CD: 11,       // s between brood summons (shorter in P3)
+  FBOSS_BROOD_MAX: 4,        // live summoned demons cap
+  FBOSS_SINK_CD: 9,          // s between sink attacks (phase 2+)
+  FBOSS_SINK_TRACK: 1.1,     // s the eruption puddle tracks the player...
+  FBOSS_SINK_LOCK: 0.6,      // ...then locks in place (the dodge window)
+  FBOSS_ERUPT_DMG: 20,
+  FBOSS_ERUPT_R: 80,
+  FBOSS_SWAT_DMG: 16,        // contact swat when you hug him
+
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
   FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —
