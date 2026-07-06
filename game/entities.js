@@ -240,9 +240,12 @@ class Player {
     this.dashDX=1; this.dashDY=0;
     this.trail=[];       // afterimage samples {x,y,a}
     // Milestone 1 — dynamite
-    this.dynamite=CFG.DYN_START;
+    // M12: with tool gating on you start with just the iron and the dash —
+    // the kit is earned mission by mission (pickups can still gift dynamite).
+    this.dynamite = CFG.TOOL_GATING ? 0 : CFG.DYN_START;
     // Milestone 3 — tools (Chris rides in already carrying his kit)
-    this.hasLasso=true; this.hasLockpick=true; this.hasWhistle=true;
+    this.hasLasso=!CFG.TOOL_GATING; this.hasLockpick=!CFG.TOOL_GATING; this.hasWhistle=!CFG.TOOL_GATING;
+    this.deadeyeUnlocked=!CFG.TOOL_GATING;   // the ritual chamber (M3) wakes it
     this.lassoTimer=0;
     this.lassoAnim=null;                 // transient rope visual {tx,ty,t}
     this.deadeye=CFG.DEADEYE_MAX*0.5;    // meter, starts half-charged
@@ -357,7 +360,7 @@ class Player {
     if (Input.hit('h') && this.hasWhistle && !this.mounted) this.summonHorse();
     // Dead Eye (hold Right Mouse) — drains meter, regens slowly otherwise
     const wantDeadeye = Input.mouse.rdown;
-    if (wantDeadeye && !this.deadeyeActive && this.deadeye>=CFG.DEADEYE_MIN) { this.deadeyeActive=true; Audio.deadeye(); }
+    if (wantDeadeye && this.deadeyeUnlocked && !this.deadeyeActive && this.deadeye>=CFG.DEADEYE_MIN) { this.deadeyeActive=true; Audio.deadeye(); }
     if (this.deadeyeActive) {
       this.deadeye = Math.max(0, this.deadeye - CFG.DEADEYE_DRAIN*dt);
       if (!wantDeadeye || this.deadeye<=0) this.deadeyeActive=false;
@@ -1220,7 +1223,7 @@ class Townsfolk {
     this.y += Math.sin(this.aim)*spd*dt;
     this.walkCycle += dt*7;
   }
-  takeDamage(d){ this.dead=true; Game.spawnImpact(this.x,this.y,'blood'); Wanted.onCivilianKilled(); Audio.hit(); }
+  takeDamage(d){ this.dead=true; Game.spawnImpact(this.x,this.y,'blood'); Wanted.onCivilianKilled(); Honor.onCivilianKilled(); Audio.hit(); }
   render(ctx,ox,oy){
     const tx=this.x-ox,ty=this.y-oy;
     ctx.fillStyle='rgba(0,0,0,0.3)';

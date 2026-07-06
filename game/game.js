@@ -41,6 +41,7 @@ const Game = {
     this.dynamites = []; this.explosions = [];
     this.kills = 0; this.score = 0; this.time = 0;
     Wanted.clear();
+    Honor.reset();
     Missions.reset();
     Camera.x = clamp(this.player.x - CFG.VIEW_W/2, 0, CFG.WORLD_W-CFG.VIEW_W);
     Camera.y = clamp(this.player.y - CFG.VIEW_H/2, 0, CFG.WORLD_H-CFG.VIEW_H);
@@ -221,7 +222,8 @@ const Game = {
     if (CFG.FX_IMPACT) this.particles.push(new HitSpark(e.x, e.y, e.kind==='boss'?34:18, '#ffe89a'));
     this.score += e.kind==='boss'?1000 : e.kind==='enforcer'?250 : e.kind==='demon'?150 : e.kind==='lawman'?150 : 100;
     this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
-    if (e.kind==='lawman') Wanted.onLawmanKilled();
+    if (e.kind==='lawman') { Wanted.onLawmanKilled(); Honor.onLawmanKilled(); }
+    if (e.kind==='demon') Honor.onDemonKilled();
     Missions.onEnemyKilled(e);
     // A boss goes out with a bang — money burst + dynamite, and a proper blast.
     if (e.kind==='boss') {
@@ -325,8 +327,14 @@ const Game = {
       p.hp=CFG.PLAYER_MAX_HP; this.giveAmmo(CFG.CYLINDER);
       this.flashMsg('Darryl: "Sit by the fire, ya idiot. Patched and loaded."');
     } else if (b.action==='store') {
-      if (p.money>=5) { p.money-=5; this.giveAmmo(6); this.flashMsg('Lucky Tooth: bought 6 rounds.'); }
-      else this.flashMsg('Lucky Tooth clerk: "Five dollars or get out." ($5)');
+      // M11: prices follow your name. Outlaws get the door.
+      if (Honor.tier()==='OUTLAW') {
+        this.flashMsg('The clerk backs into the shelves: "W-we don\'t serve your kind. T-try the undertaker..."');
+      } else {
+        const cost = Honor.ammoPrice();
+        if (p.money>=cost) { p.money-=cost; this.giveAmmo(6); this.flashMsg(`Lucky Tooth: bought 6 rounds ($${cost}).`); }
+        else this.flashMsg(`Lucky Tooth clerk: "${cost} dollars or get out." ($${cost})`);
+      }
     } else if (b.action==='sheriff') {
       const cost = Wanted.level*40;
       if (Wanted.level===0) this.flashMsg('Sheriff Crook: "Nothin’ on you... yet."');
@@ -335,13 +343,23 @@ const Game = {
     } else if (b.action==='bank') {
       // Robbing the bank: cash + heavy heat (outlaw freedom).
       const haul = randInt(60,120);
-      p.money += haul; Wanted.add(3); Camera.addShake(8);
+      p.money += haul; Wanted.add(3); Honor.add(-12, true); Camera.addShake(8);
       this.flashMsg(`Cracked the safe! +$${haul} — the whole town heard that.`);
     } else if (b.action==='chapel' || b.action==='lockdoor') {
       // Lockpick tool opens these for loot (M3).
-      if (b.looted) { this.flashMsg(b.action==='chapel' ? 'The cellar yawns open below.' : 'Already cleaned this one out.'); return; }
+      if (b.looted) {
+        // M11: once the undertaker's been burgled, an OUTLAW finds him... flexible.
+        if (b.action==='lockdoor' && Honor.tier()==='OUTLAW') {
+          if (p.money>=6) { p.money-=6; this.giveAmmo(6);
+            this.flashMsg('The undertaker slides a box of shells across a coffin lid. No questions asked. ($6)'); }
+          else this.flashMsg('Undertaker: "Six dollars. Even the damned pay up front."');
+          return;
+        }
+        this.flashMsg(b.action==='chapel' ? 'The cellar yawns open below.' : 'Already cleaned this one out.'); return;
+      }
       if (!this.player.hasLockpick) { this.flashMsg('Locked tight. You’d need a lockpick.'); return; }
       b.looted = true;
+      if (b.action==='lockdoor') Honor.add(-4, true);   // burgling the undertaker has witnesses somewhere
       const money = randInt(30,80);
       this.player.money += money; this.score += money; this.giveAmmo(4);
       let extra=''; if (Math.random()<0.6) { this.player.dynamite = Math.min(CFG.DYN_MAX, this.player.dynamite+2); extra=' + dynamite'; }
@@ -380,7 +398,7 @@ const Game = {
     const p = this.player;
     Audio.click();
     if (lm.action==='shrine') {
-      if (p.money>=5) { p.money-=5; p.hp=CFG.PLAYER_MAX_HP;
+      if (p.money>=5) { p.money-=5; p.hp=CFG.PLAYER_MAX_HP; Honor.add(2, true);
         this.flashMsg('You lay a coin on the bone shrine. The aches fade. (Healed)'); }
       else this.flashMsg('The bone shrine wants a coin ($5) for its blessing.');
     } else if (lm.action==='mine') {

@@ -42,8 +42,19 @@ tar-spit fans, devil-brood summons, phase-2 sink-and-erupt (puddle tracks then L
 dodge window), phase-3 BURNING. Kill it → sigils go dark, dawn returns, Darryl closes
 the arc. **The six-mission story arc is complete.**
 
-**Next after that →** post-arc polish from the parking lot (honor system, tool
-unlock-gating, heist, fishing) — player's choice.
+**Next after that →** the post-arc plan, in order:
+- **M11 — Honor System**: -100..+100 reputation. Down: civilians (-18), lawmen (-6),
+  bank jobs (-12), burglary (-4), fencing (-6). Up: missions (+8), honest choices,
+  shrine coins (+2), demon kills (+1). Tiers OUTLAW/NO-GOOD/DRIFTER/UPSTANDING/FOLK
+  HERO drive ammo prices, law heat rate, Darryl's mouth — and at OUTLAW the Lucky
+  Tooth refuses you while the **undertaker turns black-market dealer**.
+- **M12 — Tool Gating** (`CFG.TOOL_GATING`): earn the kit through the story —
+  dynamite from M1, lasso with M2, lockpicks with M3, Dead Eye in the ritual
+  chamber, whistle with M4. Sandbox pickups can still hand you dynamite early.
+- **M13 — The Hicksville Heist**: the bank becomes a timed vault crack — hold the
+  lobby through escalating posse waves, then an escape ride to the flats with the take.
+- **M14 — Haunted Fishing**: night fishing in the dry riverbed; impossible fish
+  sell to the Undertaker & Taxidermy. The desert stays weird.
 **The sprite set is COMPLETE** — all sheets in.
 *(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use

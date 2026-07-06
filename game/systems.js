@@ -24,7 +24,8 @@ const Wanted = {
   onCivilianKilled() { this.add(2.2); Game.flashMsg('Witnessed murder! The law wants you.'); },
   onLawmanKilled() { this.add(1.2); },
   add(v) {
-    this.heat = clamp(this.heat + v, 0, CFG.WANTED_MAX);
+    // Reputation precedes you: villains heat up faster, folk heroes get slack.
+    this.heat = clamp(this.heat + v * Honor.heatMult(), 0, CFG.WANTED_MAX);
     this.level = Math.ceil(this.heat - 1e-6);
     // Committing a crime blows your cover and re-centres the manhunt on you.
     this.searching = false;
@@ -84,6 +85,34 @@ const Wanted = {
 };
 
 /* ---------------------------------------------------------------------------
+   9a. HONOR (M11)
+   Reputation on a -100..+100 scale. Crimes drag it down, decent work pulls it
+   up. Tiers drive prices, how fast the law heats up, Darryl's mouth — and at
+   OUTLAW the Lucky Tooth won't serve you but the undertaker deals under the
+   counter. Never gates the sandbox; it just makes the world take notice.
+   --------------------------------------------------------------------------- */
+const Honor = {
+  value: 0,
+  reset() { this.value = 0; },
+  add(v, show) {
+    this.value = clamp(this.value + v, -CFG.HONOR_MAX, CFG.HONOR_MAX);
+    if (show && Game.player) Game.floats.push(new FloatText(Game.player.x, Game.player.y-34,
+      (v>0?'+':'')+v+' honor', v>0?'#9ad07a':'#d06a5a'));
+  },
+  tier() {
+    const h = this.value;
+    return h<=-40 ? 'OUTLAW' : h<=-15 ? 'NO-GOOD' : h<15 ? 'DRIFTER' : h<40 ? 'UPSTANDING' : 'FOLK HERO';
+  },
+  // The law heats faster for known villains, cooler for folk heroes.
+  heatMult() { const h=this.value; return h<=-40 ? 1.25 : h>=40 ? 0.8 : 1; },
+  // Lucky Tooth ammo price by reputation (OUTLAW handled at the counter).
+  ammoPrice() { const t=this.tier(); return t==='FOLK HERO' ? 3 : t==='UPSTANDING' ? 4 : t==='NO-GOOD' ? 7 : 5; },
+  onCivilianKilled() { this.add(-18, true); },
+  onLawmanKilled()   { this.add(-6, true); },
+  onDemonKilled()    { this.add(1); },   // quiet — but a demon hunter's name gets around
+};
+
+/* ---------------------------------------------------------------------------
    9b. MISSIONS (M4 — Mission Slice)
    Three-story vertical slice, offered in order by Darryl at camp.
    State machine: talk to Darryl → stages advance via proximity triggers,
@@ -137,11 +166,24 @@ const Missions = {
     }
   },
 
+  // M12: the kit is earned through the story. Grants land at mission start
+  // (Darryl hands it over with the briefing) as a golden float, not a msg —
+  // the briefing text owns the message line.
+  _toolGrant(id) {
+    if (!CFG.TOOL_GATING) return;
+    const p = Game.player, give = (txt) =>
+      Game.floats.push(new FloatText(p.x, p.y-40, txt, '#ffde7a'));
+    if (id==='m2' && !p.hasLasso)    { p.hasLasso = true;    give('LASSO acquired [F]'); }
+    if (id==='m3' && !p.hasLockpick) { p.hasLockpick = true; give('LOCKPICKS acquired'); }
+    if (id==='m4' && !p.hasWhistle)  { p.hasWhistle = true;  give('HORSE WHISTLE acquired [H]'); }
+  },
+
   start(id) {
     this.active = id; this.stage = 0;
     const d = this.defs[id];
     this.showCard('MISSION ' + d.num, d.title, null);
     Audio.click();
+    this._toolGrant(id);
     if (id==='m1') {
       Game.flashMsg('Darryl: "Supplies run. Hicksville. In, out, NO incidents. I mean it, Chris."');
       this.setObjective('Head into Hicksville', TOWN_CX, TOWN_CY);
@@ -175,6 +217,12 @@ const Missions = {
     this.active = null; this.stage = 0;
     this.setObjective('');
     if (reward) { Game.player.money += reward; Game.score += reward; }
+    Honor.add(8, true);   // steady work for Darryl earns a name (M11)
+    // M12: Darryl tosses a dynamite bundle with the first payout.
+    if (id==='m1' && CFG.TOOL_GATING) {
+      Game.player.dynamite = Math.min(CFG.DYN_MAX, Game.player.dynamite + 3);
+      Game.floats.push(new FloatText(Game.player.x, Game.player.y-40, 'DYNAMITE ×3 [Q]', '#ffde7a'));
+    }
     this.showCard('MISSION COMPLETE', this.defs[id].title, reward ? ('+$'+reward) : null);
     if (msg) Game.flashMsg(msg);
     Audio.money();
@@ -188,7 +236,7 @@ const Missions = {
         return { label:'Report back to Darryl', act:()=> this.complete('m1',
           'Darryl: "Missing travelers, fake bounties... Somethin\'s rotten in that town. Good work — mostly."', CFG.M1_REWARD) };
       if (this.active==='m2' && this.stage===3)
-        return { label:'Hand Darryl the supplies', act:()=>{ this.m2Supplies=false; this.complete('m2',
+        return { label:'Hand Darryl the supplies', act:()=>{ this.m2Supplies=false; Honor.add(4, true); this.complete('m2',
           'Darryl: "Honest work. Don\'t let it become a habit." He eyes the claw marks on the crate and says nothin\'.', CFG.M2_RETURN_REWARD); } };
       if (this.active==='m3' && this.stage===3)
         return { label:'Tell Darryl what you saw', act:()=> this.complete('m3',
@@ -206,7 +254,12 @@ const Missions = {
         const nid = this.next();
         if (nid) return { label:'Talk to Darryl', act:()=> this.start(nid) };
         return { label:'Talk to Darryl', act:()=>{ Audio.click();
-          Game.flashMsg('Darryl: "No work today. Try not to burn the territory down for fun."'); } };
+          const t = Honor.tier();
+          Game.flashMsg(t==='OUTLAW'     ? 'Darryl: "Folks spit when they say your name now, Chris. Some of \'em are proud of you. I ain\'t decided."'
+                      : t==='NO-GOOD'    ? 'Darryl: "Heard what you been up to. I ain\'t your conscience — but keep it outta my camp."'
+                      : t==='FOLK HERO'  ? 'Darryl: "They\'re singin\' about you at the saloon. A FOLK SONG, Chris. I nearly choked."'
+                      : t==='UPSTANDING' ? 'Darryl: "Town\'s warmin\' to you. Don\'t let it go to your head — hats are expensive."'
+                                         : 'Darryl: "No work today. Try not to burn the territory down for fun."'); } };
       }
       // Mission active but not at a Darryl stage — repeat the objective.
       return { label:'Talk to Darryl', act:()=>{ Audio.click(); Game.flashMsg('Darryl: "' + this.objective + '. Git."'); } };
@@ -219,7 +272,7 @@ const Missions = {
     if (this.active==='m2' && this.stage===3) {
       const store = STRUCTURES.find(b=>b.action==='store');
       if (store && dist(p.x,p.y,store.door.x,store.door.y) < 55)
-        return { label:'Fence the supplies ($'+CFG.M2_FENCE_REWARD+')', act:()=>{ this.m2Supplies=false; this.complete('m2',
+        return { label:'Fence the supplies ($'+CFG.M2_FENCE_REWARD+')', act:()=>{ this.m2Supplies=false; Honor.add(-6, true); this.complete('m2',
           'The clerk doesn\'t ask where the crate came from. Nobody in Hicksville ever does.', CFG.M2_FENCE_REWARD); } };
     }
     // Demon ground: examine the scorched sigil after the packs are down
@@ -256,7 +309,8 @@ const Missions = {
     const p = Game.player;
     p.deadeye = CFG.DEADEYE_MAX;   // the chamber sharpens something in Chris
     Camera.addShake(6);
-    Game.flashMsg('A ritual chamber — bone-chalk circles, candle stubs... Your senses snap razor-sharp. (Dead Eye full)');
+    p.deadeyeUnlocked = true;   // M12: the chamber wakes something in Chris
+    Game.flashMsg('A ritual chamber — bone-chalk circles, candle stubs... Your senses snap razor-sharp. (DEAD EYE unlocked — hold Right Mouse)');
     this.setObjective('Tell Darryl what you saw', DARRYL.x, DARRYL.y);
   },
   _m5Sigil() {

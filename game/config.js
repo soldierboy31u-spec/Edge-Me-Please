@@ -154,6 +154,10 @@ const CFG = {
   FBOSS_ERUPT_R: 80,
   FBOSS_SWAT_DMG: 16,        // contact swat when you hug him
 
+  // --- M11 Honor / M12 Tool gating ---
+  HONOR_MAX: 100,            // honor runs -100..+100
+  TOOL_GATING: true,         // earn tools through the missions (false = all from the start)
+
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
   FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —

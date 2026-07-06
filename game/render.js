@@ -1189,29 +1189,48 @@ function drawHUD() {
   ctx.fillStyle = ready ? '#bfeaf5' : '#6a7a82'; ctx.font='12px Georgia';
   ctx.fillText(ready ? 'DASH ready [Shift]' : 'Dash…', 124, 120);
 
-  // Dead Eye meter (hold Right Mouse)
+  // Dead Eye meter (hold Right Mouse) — greyed until the chamber wakes it (M12)
   const de = clamp(p.deadeye/CFG.DEADEYE_MAX,0,1);
   ctx.fillStyle='#2a1414'; ctx.fillRect(28,130,210,10);
-  const deg = ctx.createLinearGradient(28,0,238,0);
-  deg.addColorStop(0,'#a01818'); deg.addColorStop(1,'#e8b23a');
-  ctx.fillStyle = p.deadeyeActive ? '#ffde7a' : deg; ctx.fillRect(28,130,210*de,10);
+  if (p.deadeyeUnlocked) {
+    const deg = ctx.createLinearGradient(28,0,238,0);
+    deg.addColorStop(0,'#a01818'); deg.addColorStop(1,'#e8b23a');
+    ctx.fillStyle = p.deadeyeActive ? '#ffde7a' : deg; ctx.fillRect(28,130,210*de,10);
+  }
   ctx.strokeStyle='#1a0a0a'; ctx.lineWidth=1.5; ctx.strokeRect(28,130,210,10);
-  ctx.fillStyle='#e0c088'; ctx.font='11px Georgia'; ctx.textAlign='left';
-  ctx.fillText(p.deadeyeActive ? 'DEAD EYE ACTIVE' : 'Dead Eye [Right Mouse]', 30, 139);
+  ctx.fillStyle = p.deadeyeUnlocked ? '#e0c088' : '#6a5c48'; ctx.font='11px Georgia'; ctx.textAlign='left';
+  ctx.fillText(!p.deadeyeUnlocked ? 'Dead Eye — somethin\' still sleepin\''
+             : p.deadeyeActive ? 'DEAD EYE ACTIVE' : 'Dead Eye [Right Mouse]', 30, 139);
 
-  // Tools row
+  // Tools row — you carry what you've earned (M12)
+  const tools = [];
+  if (p.hasLasso) tools.push('Lasso [F]');
+  if (p.hasWhistle) tools.push('Whistle [H]');
+  if (p.hasLockpick) tools.push('Lockpick');
   ctx.fillStyle='#b8a880'; ctx.font='12px Georgia';
-  ctx.fillText('Lasso [F]   Whistle [H]   Lockpick', 28, 158);
+  ctx.fillText(tools.length ? tools.join('   ') : 'Tools: earn \'em workin\' for Darryl', 28, 158);
 
-  // Money / score (top-right)
+  // Money / score / honor (top-right)
   ctx.textAlign='right';
-  drawPanel(CFG.VIEW_W-210, 16, 194, 76);
+  drawPanel(CFG.VIEW_W-210, 16, 194, 96);
   ctx.fillStyle='#e8d56a'; ctx.font='bold 20px Georgia';
   ctx.fillText('$' + p.money, CFG.VIEW_W-26, 42);
   ctx.fillStyle='#c8b890'; ctx.font='13px Georgia';
   ctx.fillText('Score ' + Game.score + '   Kills ' + Game.kills, CFG.VIEW_W-26, 62);
   ctx.fillStyle='#9a8a6a'; ctx.font='12px Georgia';
   ctx.fillText('Trouble: ' + Game.diff().label, CFG.VIEW_W-26, 80);
+  // Honor (M11): centre-out meter — gold rightward for good, blood leftward for bad
+  const hv = clamp(Honor.value/CFG.HONOR_MAX, -1, 1);
+  const hbX = CFG.VIEW_W-200, hbW = 86, hbY = 88, hMid = hbX+hbW/2;
+  ctx.fillStyle='rgba(40,30,18,0.85)'; ctx.fillRect(hbX,hbY,hbW,9);
+  ctx.fillStyle = hv>=0 ? '#d8b04a' : '#b53a2a';
+  if (hv>=0) ctx.fillRect(hMid, hbY, (hbW/2)*hv, 9);
+  else       ctx.fillRect(hMid+(hbW/2)*hv, hbY, (hbW/2)*-hv, 9);
+  ctx.fillStyle='rgba(240,220,180,0.8)'; ctx.fillRect(hMid-0.5, hbY, 1, 9);
+  ctx.strokeStyle='#1a120a'; ctx.lineWidth=1; ctx.strokeRect(hbX,hbY,hbW,9);
+  ctx.fillStyle = hv<=-0.4 ? '#c86a4a' : hv>=0.4 ? '#e8cf7a' : '#9a8a6a';
+  ctx.font='11px Georgia';
+  ctx.fillText(Honor.tier(), CFG.VIEW_W-26, 97);
 
   // Wanted stars (top-centre) — flash while the law is searching for you
   ctx.textAlign='center';
