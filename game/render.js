@@ -1122,9 +1122,16 @@ function drawLightingTint() {
   const nightAmt = clamp((0.45 - warm) / 0.45, 0, 1);
   if (nightAmt > 0.01) {
     ctx.save();
+    // darken...
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.38 * nightAmt;
-    ctx.fillStyle = '#5a6a9a';
+    ctx.globalAlpha = 0.45 * nightAmt;
+    ctx.fillStyle = '#46568c';
+    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+    // ...then cool: a thin navy veil shifts the hue moonward (multiply alone
+    // can't turn orange sand blue, it just muddies it red)
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.17 * nightAmt;
+    ctx.fillStyle = '#1e2a52';
     ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
     ctx.restore();
   }
