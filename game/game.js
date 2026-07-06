@@ -375,10 +375,18 @@ const Game = {
     for (const b of this.bullets) {
       b.update(b.friendly ? dt : sdt);
       if (b.dead) continue;
+      // All hit tests sweep the bullet's full frame travel (px,py -> x,y) so
+      // fast shots can't skip over a target between frames on slow machines.
       if (b.friendly) {
         for (const e of this.enemies) {
           if (e.dead) continue;
-          if (dist2(b.x,b.y,e.x,e.y) < (e.r+b.r)*(e.r+b.r)) {
+          const rr = e.r + b.r;
+          // Iso body forgiveness: the sprite's torso stands up-screen from the
+          // feet circle, which in world space is the north-west diagonal. A
+          // second circle up that diagonal makes visible body shots register.
+          const k = CFG.ISO ? e.r * 1.7 : 0;
+          if (segCircleHit(b.px,b.py,b.x,b.y,e.x,e.y,rr) ||
+              (k && segCircleHit(b.px,b.py,b.x,b.y,e.x-k,e.y-k,rr*0.9))) {
             e.takeDamage(b.dmg);
             e.applyKnockback(Math.atan2(b.vy,b.vx), CFG.BULLET_KNOCKBACK);  // shove on hit
             b.dead=true;
@@ -388,10 +396,10 @@ const Game = {
         }
         if (!b.dead) for (const t of this.townsfolk) {
           if (t.dead) continue;
-          if (dist2(b.x,b.y,t.x,t.y) < (t.r+b.r)*(t.r+b.r)) { t.takeDamage(b.dmg); b.dead=true; break; }
+          if (segCircleHit(b.px,b.py,b.x,b.y,t.x,t.y,t.r+b.r)) { t.takeDamage(b.dmg); b.dead=true; break; }
         }
       } else {
-        if (!p.dead && dist2(b.x,b.y,p.x,p.y) < (p.r+b.r)*(p.r+b.r)) {
+        if (!p.dead && segCircleHit(b.px,b.py,b.x,b.y,p.x,p.y,p.r+b.r)) {
           p.takeDamage(b.dmg); b.dead=true;
         }
       }

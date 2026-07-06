@@ -18,17 +18,28 @@ class Bullet {
     this.r = 3;
   }
   update(dt) {
-    const px = this.x, py = this.y;
-    this.x += this.vx * dt;
-    this.y += this.vy * dt;
+    // Keep the start-of-frame position — hit resolution sweeps the whole
+    // segment so fast bullets can't tunnel through targets between frames.
+    this.px = this.x; this.py = this.y;
+    const nx = this.x + this.vx * dt;
+    const ny = this.y + this.vy * dt;
     this.life -= dt;
     if (this.life <= 0) { this.dead = true; return; }
-    if (this.x < 0 || this.y < 0 || this.x > CFG.WORLD_W || this.y > CFG.WORLD_H) { this.dead = true; return; }
-    // Collide with solid world objects (buildings + solid scenery).
-    if (Game.hitsSolid(this.x, this.y)) {
-      this.dead = true;
-      Game.spawnImpact(px, py, 'dirt');
+    if (nx < 0 || ny < 0 || nx > CFG.WORLD_W || ny > CFG.WORLD_H) { this.dead = true; return; }
+    // Collide with solid world objects (buildings + solid scenery), sampled
+    // along the frame's travel so walls stop shots even on slow frames.
+    const steps = Math.max(1, Math.ceil(Math.hypot(nx - this.px, ny - this.py) / 12));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const sx = lerp(this.px, nx, t), sy = lerp(this.py, ny, t);
+      if (Game.hitsSolid(sx, sy)) {
+        this.x = sx; this.y = sy;
+        this.dead = true;
+        Game.spawnImpact(sx, sy, 'dirt');
+        return;
+      }
     }
+    this.x = nx; this.y = ny;
   }
   render(ctx, ox, oy) {
     ctx.save();
@@ -302,9 +313,15 @@ class Player {
     const moving = Math.hypot(ix,iy) > 0;
     if (moving) this.walkCycle += dt * (this.mounted ? 14 : 9);
 
-    // Integrate + resolve collisions
-    this.x += this.vx * dt; this.y += this.vy * dt;
-    this.resolveCollisions();
+    // Integrate + resolve collisions, substepped so one slow frame at dash or
+    // horse speed can't carry the centre clean through a wall or fence.
+    const moveDist = Math.hypot(this.vx, this.vy) * dt;
+    const subSteps = Math.max(1, Math.ceil(moveDist / 12));
+    for (let i = 0; i < subSteps; i++) {
+      this.x += this.vx * dt / subSteps;
+      this.y += this.vy * dt / subSteps;
+      this.resolveCollisions();
+    }
     this.x = clamp(this.x, this.r, CFG.WORLD_W - this.r);
     this.y = clamp(this.y, this.r, CFG.WORLD_H - this.r);
     if (this.mounted) { this.mounted.x = this.x; this.mounted.y = this.y; this.mounted.aim = this.aim; }

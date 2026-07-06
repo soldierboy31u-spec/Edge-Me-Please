@@ -60,6 +60,17 @@ function isoScreenAngle(a) {
 
 // Axis-aligned circle-vs-rect overlap test, returns penetration resolution.
 function circleRect(cx, cy, r, rx, ry, rw, rh) {
+  // Centre fully inside the rect: the clamp trick degenerates to a zero push
+  // vector, so eject through the nearest face instead (a fast dash on a slow
+  // frame can step the centre straight past a wall in one tick).
+  if (cx > rx && cx < rx + rw && cy > ry && cy < ry + rh) {
+    const dl = cx - rx, dr = rx + rw - cx, dt = cy - ry, db = ry + rh - cy;
+    const m = Math.min(dl, dr, dt, db);
+    if (m === dl) return { hit: true, nx: -1, ny: 0, pen: dl + r };
+    if (m === dr) return { hit: true, nx: 1, ny: 0, pen: dr + r };
+    if (m === dt) return { hit: true, nx: 0, ny: -1, pen: dt + r };
+    return { hit: true, nx: 0, ny: 1, pen: db + r };
+  }
   const nx = clamp(cx, rx, rx + rw);
   const ny = clamp(cy, ry, ry + rh);
   const dx = cx - nx, dy = cy - ny;
@@ -69,4 +80,16 @@ function circleRect(cx, cy, r, rx, ry, rw, rh) {
     return { hit: true, nx: dx / d, ny: dy / d, pen: r - d };
   }
   return { hit: false };
+}
+
+// Does the segment (x1,y1)-(x2,y2) pass within r of (cx,cy)? Swept version of
+// a point-vs-circle test — fast bullets cover 30-50px per frame on slow
+// machines and tunnel straight through point checks.
+function segCircleHit(x1, y1, x2, y2, cx, cy, r) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx*dx + dy*dy;
+  let t = len2 ? ((cx - x1)*dx + (cy - y1)*dy) / len2 : 0;
+  t = clamp(t, 0, 1);
+  const px = x1 + dx*t, py = y1 + dy*t;
+  return dist2(px, py, cx, cy) <= r*r;
 }
