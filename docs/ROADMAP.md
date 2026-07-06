@@ -31,7 +31,19 @@ stable, chapel, tent) via `ISO_BUILDING_ART` in sprites.js (per-building
 anchorX/anchorY/footScale, calibrated live). Prompts + cleanup notes in
 `docs/ISO_BUILDING_SPEC.md`. Placeholder-diamond fallback stays for any untagged building.
 
-**Next after that →** demon-arc finale (Darryl's "Benny was a symptom" hook is live).
+**Milestone 9 — Demon Arc: ✅ DONE** — `Game.warmth()` day/night core (natural cycle +
+eased mission override, `nightForce`); wild demons rise in the haunted flats at night
+(`DEMON_NIGHT_MAX`, ash at dawn); the law won't chase past `HAUNTED_RADIUS` (manhunt
+cools out there); Mission V *What the Desert Spat Out* (m5: forced night, two demon
+waves, sigil clue). Demon = Grok cartoon devil, single pose, kind `'demon'`.
+**Milestone 10 — Finale: ✅ DONE** — Mission VI *The Thing Below* (m6): OLD HUNGER,
+the tar colossus that wore Benny, rises at the mine. `class FinalBoss` (entities.js):
+tar-spit fans, devil-brood summons, phase-2 sink-and-erupt (puddle tracks then LOCKS —
+dodge window), phase-3 BURNING. Kill it → sigils go dark, dawn returns, Darryl closes
+the arc. **The six-mission story arc is complete.**
+
+**Next after that →** post-arc polish from the parking lot (honor system, tool
+unlock-gating, heist, fishing) — player's choice.
 **The sprite set is COMPLETE** — all sheets in.
 *(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
