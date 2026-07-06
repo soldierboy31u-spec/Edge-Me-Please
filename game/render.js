@@ -72,7 +72,7 @@ function render() {
 
     drawMissionMarker(ox, oy);
     drawReticle();
-    if (DBG.tint && DBG.fxWash()) drawLightingTint();
+    if (DBG.tint) drawLightingTint();   // cosmetic wash fades itself; night dark is gameplay
     drawDeadEye();
     drawHUD();
     drawMinimap();
@@ -711,7 +711,7 @@ function drawLandmarkGround(ox, oy, skipChests) {
       ctx.restore();
     } else if (lm.type==='ghosttrail') {
       // Only visible at night — alpha tracks the lighting cycle.
-      const night = clamp(1-(Math.sin(Game.dayPhase*TAU)*0.5+0.5), 0, 1);
+      const night = clamp(1 - Game.warmth(), 0, 1);
       if (night<0.15) continue;
       const endX=TOWN_CX+760, endY=TOWN_CY+1720;
       for (let i=0;i<=8;i++){
@@ -1106,7 +1106,7 @@ function drawLightingTint() {
   // Colour lerps continuously through the cycle (the old hard warm/cool
   // switch at the midpoint read as an instant night->day flip), and the
   // alpha rides the adaptive-quality fade so tier changes ease in/out.
-  const warm = (Math.sin(Game.dayPhase*TAU)*0.5+0.5);
+  const warm = Game.warmth();   // natural cycle blended with any forced night
   const r = Math.round(lerp(48,  255, warm));
   const g = Math.round(lerp(80,  176, warm));
   const b = Math.round(lerp(160,  96, warm));
@@ -1116,6 +1116,18 @@ function drawLightingTint() {
   ctx.fillStyle = `rgb(${r},${g},${b})`;
   ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
   ctx.restore();
+  // Night falls for real (M9): a cool multiply that deepens as the light goes
+  // cold. Demons rise in the dark, so the dark has to be felt — this one is
+  // gameplay-relevant, so it doesn't ride the adaptive washFade.
+  const nightAmt = clamp((0.45 - warm) / 0.45, 0, 1);
+  if (nightAmt > 0.01) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.38 * nightAmt;
+    ctx.fillStyle = '#5a6a9a';
+    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+    ctx.restore();
+  }
   // Player hurt red flash
   if (Game.player.hurtFlash>0) {
     ctx.save();

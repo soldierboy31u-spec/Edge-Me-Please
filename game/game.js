@@ -13,6 +13,9 @@ const Game = {
   dynamites: [], explosions: [],
   time: 0,
   dayPhase: 0,        // 0..1 cycles for subtle lighting shift
+  nightForce: 0,      // 0..1 eased override pulling the sky to night (M9 missions)
+  nightTarget: 0,     // where nightForce is easing toward
+  demonTimer: 0,      // cooldown between wild demon spawns
   msg: '', msgTimer: 0,
   interactPrompt: null,
   score: 0, kills: 0,
@@ -30,6 +33,7 @@ const Game = {
     resetSecrets();   // re-hide buried caches for a fresh run
     for (const b of STRUCTURES) b.looted = false;   // re-lock pickable doors
     this._hadLaw = false;                            // manhunt bookkeeping
+    this.nightForce = 0; this.nightTarget = 0; this.demonTimer = 0;
     // Chris King starts at Darryl's camp — somewhere to belong before Hicksville judges him.
     this.player = new Player(CAMP_CX, CAMP_CY + 130);
     this.enemies = []; this.bullets = []; this.particles = [];
@@ -56,13 +60,8 @@ const Game = {
     // Wagon circle ambush — a couple of bandits holed up out in the flats.
     for (let i=0;i<2;i++) this.enemies.push(new Enemy(LANDMARK_POS.wagons.x+rand(-90,90), LANDMARK_POS.wagons.y+rand(-90,90), 'bandit'));
 
-    // M9 teaser: a pack of desert demons prowls the haunted flats past the
-    // Bone Arch — first taste of the demon arc, well away from town and camp.
-    for (let i=0;i<3;i++) {
-      this.enemies.push(new Enemy(
-        clamp(LANDMARK_POS.arch.x + 420 + rand(-110,110), 100, CFG.WORLD_W-100),
-        clamp(LANDMARK_POS.arch.y - 160 + rand(-110,110), 100, CFG.WORLD_H-100), 'demon'));
-    }
+    // M9: demons are night creatures now — the wild packs rise via
+    // updateNightDemons() when the light goes cool, and ash out at dawn.
 
     // Townsfolk wandering the square.
     for (let i=0;i<5;i++) this.townsfolk.push(new Townsfolk(TOWN_CX+rand(-300,300), TOWN_CY+rand(-300,300)));
@@ -91,6 +90,15 @@ const Game = {
   },
   // Is the player laying low at Darryl's camp? (Manhunt safe haven.)
   playerInCamp() { return dist(this.player.x, this.player.y, CAMP_CX, CAMP_CY) < CFG.CAMP_SAFE_RADIUS; },
+  // The haunted flats — everything beyond the town's reach. The law won't follow. (M9)
+  playerInHauntedFlats() { return dist(this.player.x, this.player.y, TOWN_CX, TOWN_CY) > CFG.HAUNTED_RADIUS; },
+  // Single source of day/night truth: the natural cycle, blended toward forced
+  // night when a mission pulls the sky dark (nightTarget eases, never snaps).
+  warmth() {
+    const nat = Math.sin(this.dayPhase*TAU)*0.5+0.5;
+    return lerp(nat, 0.06, this.nightForce);
+  },
+  isNight() { return this.warmth() < 0.30; },
 
   // --- Spawners / FX -------------------------------------------------------
   spawnMuzzle(x,y,ang) {
@@ -176,11 +184,42 @@ const Game = {
     this.enemies.push(law);
   },
 
+  // --- M9: wild demons rise in the haunted flats at night, ash at dawn -----
+  updateNightDemons(dt) {
+    this.demonTimer -= dt;
+    if (this.isNight()) {
+      const wild = this.enemies.filter(e => e.kind==='demon' && !e.dead && !e.missionTag).length;
+      if (this.demonTimer <= 0 && wild < CFG.DEMON_NIGHT_MAX) {
+        this.demonTimer = CFG.DEMON_SPAWN_COOLDOWN;
+        this.spawnNightDemon();
+      }
+    } else {
+      // Dawn takes them back — no loot, no score, just a puff of ash.
+      for (const e of this.enemies) {
+        if (e.kind!=='demon' || e.dead || e.missionTag) continue;
+        e.dead = true;
+        for (let i=0;i<10;i++) this.particles.push(new Particle(e.x+rand(-8,8), e.y+rand(-10,4),
+          rand(-30,30), rand(-60,-10), rand(0.4,0.9), 'rgba(120,70,40,0.6)', rand(2,5)));
+      }
+    }
+  },
+  spawnNightDemon() {
+    for (let tries=0; tries<12; tries++) {
+      const x = rand(150, CFG.WORLD_W-150), y = rand(150, CFG.WORLD_H-150);
+      if (dist(x,y,TOWN_CX,TOWN_CY) < CFG.HAUNTED_RADIUS) continue;   // the flats only
+      if (dist(x,y,CAMP_CX,CAMP_CY) < 620) continue;                  // camp stays safe
+      if (dist(x,y,this.player.x,this.player.y) < 520) continue;      // never on top of Chris
+      if (this.hitsSolid(x,y)) continue;
+      this.enemies.push(new Enemy(x, y, 'demon'));
+      return;
+    }
+  },
+
   onEnemyKilled(e) {
     this.kills++;
     // M6: KO starburst — bigger for bigger folk
     if (CFG.FX_IMPACT) this.particles.push(new HitSpark(e.x, e.y, e.kind==='boss'?34:18, '#ffe89a'));
-    this.score += e.kind==='boss'?1000 : e.kind==='enforcer'?250 : e.kind==='lawman'?150 : 100;
+    this.score += e.kind==='boss'?1000 : e.kind==='enforcer'?250 : e.kind==='demon'?150 : e.kind==='lawman'?150 : 100;
     this.player.deadeye = Math.min(CFG.DEADEYE_MAX, this.player.deadeye + CFG.DEADEYE_GAIN_KILL);  // fills Dead Eye
     if (e.kind==='lawman') Wanted.onLawmanKilled();
     Missions.onEnemyKilled(e);
@@ -197,11 +236,12 @@ const Game = {
     if (e.kind==='enforcer') this.pickups.push(new Pickup(e.x+rand(-14,14), e.y+rand(-14,14), 'money'));
     if (Math.random()<0.22) this.pickups.push(new Pickup(e.x+rand(-12,12), e.y+rand(-12,12), 'dynamite'));  // occasional sticks
     if (e.kind==='lawman' && Math.random()<0.55) this.pickups.push(new Pickup(e.x+rand(-12,12), e.y+rand(-12,12), 'bribe'));  // lawmen drop bribe tokens
-    this.floats.push(new FloatText(e.x, e.y-20, e.kind==='enforcer'?'+250':'+100', '#e8d56a'));
+    this.floats.push(new FloatText(e.x, e.y-20, e.kind==='enforcer'?'+250':e.kind==='demon'?'+150':'+100', '#e8d56a'));
     // Spawn a fresh bandit elsewhere occasionally to keep the world alive.
     // Gang cap scales with difficulty (more enemies on Normal/Hard).
+    // (Demons don't count — the night spawner owns their numbers.)
     const cap = Math.round(9 * this.diff().count);
-    if (e.kind!=='lawman' && this.enemies.filter(x=>x.kind!=='lawman').length < cap && Math.random()<0.65) {
+    if (e.kind!=='lawman' && e.kind!=='demon' && this.enemies.filter(x=>x.kind!=='lawman').length < cap && Math.random()<0.65) {
       const a=rand(0,TAU), d=rand(1100,1600);
       const nx=clamp(this.player.x+Math.cos(a)*d,100,CFG.WORLD_W-100);
       const ny=clamp(this.player.y+Math.sin(a)*d,100,CFG.WORLD_H-100);
@@ -361,6 +401,9 @@ const Game = {
     if (this.state !== STATE.PLAY) return;
     this.time += dt;
     this.dayPhase = (this.time * 0.01) % 1;   // very slow cycle
+    // Forced night (Mission V) eases in/out so the lighting never snaps.
+    this.nightForce += clamp(this.nightTarget - this.nightForce, -dt*0.4, dt*0.4);
+    this.updateNightDemons(dt);
 
     const p = this.player;
     p.update(dt);   // player always runs at real time (stays responsive)

@@ -44,10 +44,17 @@ const Wanted = {
   },
 
   update(dt, player) {
-    if (this.level <= 0) { this.searching = false; return; }
+    if (this.level <= 0) { this.searching = false; this._fearShown = false; return; }
     const inCamp  = Game.playerInCamp();
-    const spotted = !inCamp && this.lawSeesPlayer(player);   // camp = safe, counts as unseen
+    const inFlats = Game.playerInHauntedFlats();   // M9: the law won't follow past the flats
+    const spotted = !inCamp && !inFlats && this.lawSeesPlayer(player);   // both count as unseen
     this.searchRadius = CFG.SEARCH_RADIUS_BASE + (this.level-1)*CFG.SEARCH_RADIUS_PER;
+
+    // Flavor beat, once per manhunt: the posse reins up at the edge of the flats.
+    if (inFlats && !this._fearShown && Game.enemies.some(e=>e.kind==='lawman' && !e.dead)) {
+      this._fearShown = true;
+      Game.flashMsg('The posse reins up behind you. They ain\'t paid enough to follow you out THERE.');
+    }
 
     if (spotted) {
       // HUNTED — no cooldown; the manhunt tracks your live position.
@@ -93,15 +100,18 @@ const Missions = {
   marker: null,       // {x,y} world-space objective marker (minimap + chevron)
   m2Supplies: false,  // carrying the recovered supplies (Bone-Dry Job)
 
-  order: ['m1','m2','m3','m4'],
+  order: ['m1','m2','m3','m4','m5'],
   defs: {
     m1: { num:'I',   title:'WELCOME TO HICKSVILLE' },
     m2: { num:'II',  title:'THE BONE-DRY JOB' },
     m3: { num:'III', title:'TROUBLE UNDER THE CHAPEL' },
     m4: { num:'IV',  title:'THE RATTLEBONE GANG' },
+    m5: { num:'V',   title:'WHAT THE DESERT SPAT OUT' },
   },
   // Where the Bone-Dry ambush happens (the dry riverbed landmark).
   m2Site: { x: TOWN_CX-200, y: TOWN_CY-1250 },
+  // The demon ground out past the Bone Arch (M9 / Mission V).
+  m5Site: { x: LANDMARK_POS.arch.x+420, y: LANDMARK_POS.arch.y-160 },
 
   reset() {
     this.active=null; this.stage=0; this.completed={};
@@ -150,6 +160,9 @@ const Missions = {
       Game.flashMsg('Darryl: "Fake bounties, ambushes, that chamber — one name keeps rattlin\' loose. Buckshot Benny. End him."');
       const hd = LANDMARK_POS.hideout;
       this.setObjective('Ride east past the Bone Arch to the Rattlebone hideout', hd.x, hd.y);
+    } else if (id==='m5') {
+      Game.flashMsg('Darryl: "Whatever wore Benny like a Sunday suit is still out there. Folks see lights past the arch at night. Go look — and Chris, don\'t let it look back."');
+      this.setObjective('Ride to the demon ground past the Bone Arch', this.m5Site.x, this.m5Site.y);
     }
   },
 
@@ -179,6 +192,9 @@ const Missions = {
       if (this.active==='m4' && this.stage===3)
         return { label:'Tell Darryl it\'s done', act:()=> this.complete('m4',
           'Darryl: "Black as tar, you say. Then Benny weren\'t the disease, Chris. He was a symptom."', CFG.M4_REWARD) };
+      if (this.active==='m5' && this.stage===4)
+        return { label:'Tell Darryl what crawled out', act:()=> this.complete('m5',
+          'Darryl: "Same sigil as the mine..." He stares east a long while. "They ain\'t comin\' FROM the desert, Chris. They\'re comin\' from UNDER it."', CFG.M5_REWARD) };
       if (!this.active) {
         const nid = this.next();
         if (nid) return { label:'Talk to Darryl', act:()=> this.start(nid) };
@@ -198,6 +214,10 @@ const Missions = {
       if (store && dist(p.x,p.y,store.door.x,store.door.y) < 55)
         return { label:'Fence the supplies ($'+CFG.M2_FENCE_REWARD+')', act:()=>{ this.m2Supplies=false; this.complete('m2',
           'The clerk doesn\'t ask where the crate came from. Nobody in Hicksville ever does.', CFG.M2_FENCE_REWARD); } };
+    }
+    // Demon ground: examine the scorched sigil after the packs are down
+    if (this.active==='m5' && this.stage===3 && dist(p.x,p.y,this.m5Site.x,this.m5Site.y) < 90) {
+      return { label:'Examine the scorched sigil', act:()=> this._m5Sigil() };
     }
     // Chapel job: descend into the opened mine
     if (this.active==='m3' && this.stage===2) {
@@ -232,6 +252,14 @@ const Missions = {
     Game.flashMsg('A ritual chamber — bone-chalk circles, candle stubs... Your senses snap razor-sharp. (Dead Eye full)');
     this.setObjective('Tell Darryl what you saw', DARRYL.x, DARRYL.y);
   },
+  _m5Sigil() {
+    Audio.click();
+    this.stage = 4;
+    Game.nightTarget = 0;          // the sky lets go — dawn bleeds back in
+    Camera.addShake(4);
+    Game.flashMsg('Bone-chalk, scorched deep into the hardpan — the SAME sigil as the chamber under the mine.');
+    this.setObjective('Tell Darryl what crawled out', DARRYL.x, DARRYL.y);
+  },
 
   // --- Event hooks (called from Game) ---------------------------------------
   onEnemyKilled(e) {
@@ -265,6 +293,18 @@ const Missions = {
       this.stage = 3;
       Game.flashMsg('Benny drops — and what leaks out of him is black as tar, and it ain\'t blood.');
       this.setObjective('Tell Darryl it\'s done', DARRYL.x, DARRYL.y);
+    } else if (this.active==='m5' && this.stage===1) {
+      if (left>0) { this.setObjective('Put down the demon pack ('+left+' left)', e.x, e.y); return; }
+      this.stage = 2;
+      this.spawnTagged('m5', this.m5Site.x, this.m5Site.y, 5, 'demon');
+      Game.flashMsg('The hardpan cracks — another pack claws up out of the dark!');
+      this.setObjective('Put down the second pack (5 left)', this.m5Site.x, this.m5Site.y);
+      Camera.addShake(6);
+    } else if (this.active==='m5' && this.stage===2) {
+      if (left>0) { this.setObjective('Put down the second pack ('+left+' left)', e.x, e.y); return; }
+      this.stage = 3;
+      Game.flashMsg('Quiet. In the settling dust you spot something scorched into the ground...');
+      this.setObjective('Examine the scorched sigil', this.m5Site.x, this.m5Site.y);
     }
   },
   onBoardRead() {
@@ -315,10 +355,20 @@ const Missions = {
         this.setObjective('Wipe out Benny\'s guards (4 left)', hd.x, hd.y);
         Camera.addShake(5);
       }
+    } else if (this.active==='m5' && this.stage===0) {
+      if (dist(p.x,p.y,this.m5Site.x,this.m5Site.y) < CFG.MISSION_ARRIVE_DIST) {
+        this.stage = 1;
+        Game.nightTarget = 1;   // the sun dies early out here — sky eases to night
+        this.spawnTagged('m5', this.m5Site.x, this.m5Site.y, 4, 'demon');
+        Game.flashMsg('The sun dies early out here. Somethin\' peels itself off the rocks!');
+        this.setObjective('Put down the demon pack (4 left)', this.m5Site.x, this.m5Site.y);
+        Camera.addShake(5);
+      }
     }
 
     // Kill-stage markers track the nearest surviving target (or Benny himself).
-    if ((this.active==='m1'||this.active==='m2'||this.active==='m4') && this.stage===1) {
+    if (((this.active==='m1'||this.active==='m2'||this.active==='m4') && this.stage===1)
+        || (this.active==='m5' && (this.stage===1 || this.stage===2))) {
       let best=null, bd=Infinity;
       for (const e of Game.enemies) {
         if (e.missionTag!==this.active || e.dead) continue;

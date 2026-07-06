@@ -617,8 +617,9 @@ class Enemy {
       return;
     }
     const dToPlayer = dist(this.x,this.y,player.x,player.y);
-    // Lawmen won't hunt you inside the camp safe haven — they give up at the edge.
-    const campSafe = this.kind==='lawman' && Game.playerInCamp();
+    // Lawmen won't hunt you inside the camp safe haven — they give up at the
+    // edge. Same past the haunted flats (M9): they ain't paid enough for that.
+    const campSafe = this.kind==='lawman' && (Game.playerInCamp() || Game.playerInHauntedFlats());
     const canSee = !campSafe && dToPlayer < CFG.ENEMY_VIEW && Game.lineOfSight(this.x,this.y,player.x,player.y);
 
     // ---- AI STATE MACHINE ----

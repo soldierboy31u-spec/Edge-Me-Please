@@ -130,6 +130,12 @@ const CFG = {
   BOSS_SUMMON_N: 2,          // Rattlebone reinforcements per phase transition
   M4_REWARD: 150,            // Darryl pays well for a war
 
+  // --- M9 Demon Arc ---
+  M5_REWARD: 120,            // What the Desert Spat Out
+  HAUNTED_RADIUS: 1500,      // beyond this dist from town = the haunted flats; the law won't follow
+  DEMON_NIGHT_MAX: 4,        // wild demons prowling the flats per night
+  DEMON_SPAWN_COOLDOWN: 7,   // s between wild demon spawns while it's night
+
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
   FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —
