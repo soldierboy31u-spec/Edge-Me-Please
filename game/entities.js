@@ -926,19 +926,22 @@ class Boss extends Enemy {
       ctx.lineTo(tx+Math.cos(this.aim)*(120+c*260), ty+Math.sin(this.aim)*(120+c*260)); ctx.stroke();
       ctx.setLineDash([]); ctx.restore();
     }
-    // The man himself — a bandit drawn 1.45× with a bone-white duster.
-    ctx.save();
-    ctx.translate(tx,ty); ctx.scale(1.45,1.45); ctx.translate(-tx,-ty);
-    drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0,
-      this.phase===3 ? {coat:'#6a2020', hat:'#141010', skin:'#c8b8a8'}
-                     : {coat:'#5a4a3a', hat:'#1a1410', skin:'#c0a080'});
-    ctx.restore();
-    // Bone bandolier + skull pin (reads "Rattlebone king" at a glance)
-    ctx.save();
-    ctx.strokeStyle='#ddd2b0'; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.moveTo(tx-12,ty-8); ctx.lineTo(tx+12,ty+10); ctx.stroke();
-    ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(tx+9,ty-16,4,0,TAU); ctx.fill();
-    ctx.restore();
+    // The man himself — Benny's sprite when loaded (already wears his bandolier),
+    // else the procedural 1.45× bandit + bone bandolier fallback.
+    const drewSprite = typeof drawBossSprite !== 'undefined' && drawBossSprite(ctx, this, ox, oy);
+    if (!drewSprite) {
+      ctx.save();
+      ctx.translate(tx,ty); ctx.scale(1.45,1.45); ctx.translate(-tx,-ty);
+      drawBandit(ctx, tx, ty, this.aim, this.recoil, this.walkCycle, this.hurtFlash>0,
+        this.phase===3 ? {coat:'#6a2020', hat:'#141010', skin:'#c8b8a8'}
+                       : {coat:'#5a4a3a', hat:'#1a1410', skin:'#c0a080'});
+      ctx.restore();
+      ctx.save();
+      ctx.strokeStyle='#ddd2b0'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(tx-12,ty-8); ctx.lineTo(tx+12,ty+10); ctx.stroke();
+      ctx.fillStyle='#e8dec0'; ctx.beginPath(); ctx.arc(tx+9,ty-16,4,0,TAU); ctx.fill();
+      ctx.restore();
+    }
     // Windup aim tell (same language as regular enemies, thicker)
     if (this.windup>0) {
       const charge = 1 - this.windup/CFG.ENEMY_WINDUP;

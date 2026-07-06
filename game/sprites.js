@@ -388,6 +388,41 @@ function drawDarrylSprite(ctx, tx, ty, bobY) {
   return true;
 }
 
+/* ---- Buckshot Benny — boss sprite (single front-facing pose) ------------
+   Grok-drawn hero pose; always billboards front-on (he faces the player).
+   Rendered ~1.5x a bandit via scale 1.32. */
+const BossSprite = {
+  img: null, ink: null, red: null,
+  load() {
+    if (!CFG.USE_SPRITES) return;
+    Assets.loadImage('boss', 'assets/characters/boss/boss.png').then((img) => {
+      if (img) { this.img = img;
+        if (CFG.FX_OUTLINE) this.ink = EnemySprites._tint(img, '#1a120a');
+        this.red = EnemySprites._tint(img, '#e04030'); }
+    });
+  },
+};
+// Draw the boss sprite feet-anchored; false -> procedural fallback.
+function drawBossSprite(ctx, e, ox, oy) {
+  const img = BossSprite.img; if (!img) return false;
+  const scale = CFG.SPRITE_DRAW_SCALE * 1.32;         // ~1.5x a normal bandit
+  const dx = (e.x - ox) - 64*scale;
+  const dy = (e.y + (CFG.SPRITE_FOOT_OFFSET||0) - oy) - 108*scale;
+  const dw = img.width*scale, dh = img.height*scale;
+  const prev = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
+  if (CFG.FX_OUTLINE && DBG.outline && BossSprite.ink) {
+    ctx.save(); ctx.globalAlpha = 0.85;
+    for (const [ix,iy] of [[-1,0],[1,0],[0,-1],[0,1]]) ctx.drawImage(BossSprite.ink, dx+ix, dy+iy, dw, dh);
+    ctx.restore();
+  }
+  ctx.drawImage(img, dx, dy, dw, dh);
+  if (e.hurtFlash > 0 && BossSprite.red) {
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.drawImage(BossSprite.red, dx, dy, dw, dh); ctx.restore();
+  }
+  ctx.imageSmoothingEnabled = prev;
+  return true;
+}
+
 /* ---- Iso building art (M8 Tier 2) ---------------------------------------
    Generated iso PNGs (docs/ISO_BUILDING_SPEC.md) replace the placeholder
    diamonds. Each entry anchors the art's ground-footprint centre onto the
