@@ -44,8 +44,11 @@ const TouchUI = {
 
   _pt(t) {   // client -> canvas coords (same mapping as the mouse handler)
     const r = this.canvas.getBoundingClientRect();
-    return [ (t.clientX - r.left) * (this.canvas.width / r.width),
-             (t.clientY - r.top)  * (this.canvas.height / r.height) ];
+    // Degenerate rect (hidden/headless tab) would divide to NaN — fall back
+    // to treating client coords as canvas coords.
+    const sx = r.width  ? this.canvas.width  / r.width  : 1;
+    const sy = r.height ? this.canvas.height / r.height : 1;
+    return [ (t.clientX - r.left) * sx, (t.clientY - r.top) * sy ];
   },
   _press(key) {
     if (key === '_deadeye') { Input.mouse.rdown = true; return; }
