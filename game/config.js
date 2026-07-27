@@ -158,6 +158,12 @@ const CFG = {
   HONOR_MAX: 100,            // honor runs -100..+100
   TOOL_GATING: true,         // earn tools through the missions (false = all from the start)
 
+  // --- M14 Haunted Fishing ---
+  FISH_WAIT_MIN: 1.6,        // s until the bite...
+  FISH_WAIT_MAX: 4.2,
+  FISH_BITE_WINDOW: 0.6,     // s to strike [E] once it bites
+  FISH_CARRY_MAX: 8,         // saddlebag capacity — then sell to the undertaker
+
   // --- M13 The Hicksville Heist ---
   HEIST_CRACK_TIME: 18,      // s the drill needs (only counts while you hold the lobby)
   HEIST_HEAT_RAMP: 0.28,     // wanted heat per second while the drill chews (alarm)

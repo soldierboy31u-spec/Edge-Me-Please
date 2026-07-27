@@ -170,6 +170,24 @@ const LANDMARKS = [
   { type:'ghosttrail', x:TOWN_CX+700, y:TOWN_CY+1500, name:'Ghost-Lantern Trail' },
 ];
 
+// M14: ghost-pools along the dry riverbed. Dry cracked earth by day — at
+// night, water that shouldn't be there shimmers and the impossible fish
+// bite. Positions sit on the drawn channel (render.js drawLandmarkGround).
+const FISH_SPOTS = [
+  { x: TOWN_CX-200+125, y: TOWN_CY-1250+150 },
+  { x: TOWN_CX-200-71,  y: TOWN_CY-1250+600 },
+  { x: TOWN_CX-200+3,   y: TOWN_CY-1250+1050 },
+];
+// Catch table — weighted roll; the haunted ones delight the undertaker.
+const FISH_TABLE = [
+  { name:'Dust Trout',            value:  8, w: 40 },
+  { name:'Bone Carp',             value: 14, w: 25 },
+  { name:'Sandblind Catfish',     value: 20, w: 12 },
+  { name:'Coffin Eel',            value: 26, w: 13 },
+  { name:'WEEPING ANGLER',        value: 55, w:  7, haunted:true },
+  { name:'GRINNING JAWBONE FISH', value: 90, w:  3, haunted:true },
+];
+
 // Buried caches — walk over the disturbed mound and press [E] to dig.
 let SECRETS = [];
 function resetSecrets() {

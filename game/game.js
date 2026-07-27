@@ -36,6 +36,7 @@ const Game = {
     this.nightForce = 0; this.nightTarget = 0; this.demonTimer = 0;
     // M13: heist state — idle | cracking | carrying (+ restock cooldown)
     this.heist = { state:'idle', t:0, take:0, cooldown:0, stalled:false };
+    this.fishing = null;   // M14: active cast {spot, state, t, biteT}
     // Chris King starts at Darryl's camp — somewhere to belong before Hicksville judges him.
     this.player = new Player(CAMP_CX, CAMP_CY + 130);
     this.enemies = []; this.bullets = []; this.particles = [];
@@ -259,6 +260,12 @@ const Game = {
   checkInteraction() {
     this.interactPrompt = null;
     const p = this.player;
+    // M14: mid-cast — [E] is the strike and nothing else may steal it.
+    if (this.fishing) {
+      this.interactPrompt = { label: this.fishing.state==='bite' ? 'STRIKE!' : 'Wait for the bite…' };
+      if (Input.hit('e')) this.fishStrike();
+      return;
+    }
     // Mission interactions take priority (Darryl talk, wagon search, mine descent…)
     const mi = Missions.getInteract(p);
     if (mi) {
@@ -281,6 +288,17 @@ const Game = {
         this.interactPrompt = { label: (lm.action==='mine'&&lm.opened) ? 'Mine shaft — dark and deep (more soon)' : lm.label };
         if (Input.hit('e')) this.doLandmark(lm);
         return;
+      }
+    }
+    // M14: ghost-pools — cast a line, night only
+    if (this.isNight()) {
+      for (const fs of FISH_SPOTS) {
+        if (dist(p.x,p.y,fs.x,fs.y) < 64) {
+          const full = p.fish.length >= CFG.FISH_CARRY_MAX;
+          this.interactPrompt = { label: full ? 'Saddlebag\'s full of fish — sell to the undertaker' : 'Cast into the ghost-water' };
+          if (Input.hit('e') && !full) this.startFishing(fs);
+          return;
+        }
       }
     }
     // Buried caches — dig with [E]
@@ -365,6 +383,19 @@ const Game = {
       Camera.addShake(6);
       this.flashMsg('You put the drill to the vault — the alarm bell ROARS. Hold the lobby while it chews!');
     } else if (b.action==='chapel' || b.action==='lockdoor') {
+      // M14: fish on the saddle? The undertaker buys before anything else.
+      if (b.action==='lockdoor' && p.fish.length > 0) {
+        const total = p.fish.reduce((s,f)=>s+f.value,0);
+        const haunted = p.fish.some(f=>f.haunted);
+        p.money += total; this.score += total;
+        this.floats.push(new FloatText(p.x, p.y-30, '+$'+total, '#ffde7a'));
+        this.flashMsg(haunted
+          ? `The undertaker cradles the glowing catch: +$${total}. "It's still GRINNING," he whispers, delighted.`
+          : `The undertaker weighs the catch and pays $${total}. "Fresh from a dry river. Naturally."`);
+        p.fish = [];
+        Audio.money();
+        return;
+      }
       // Lockpick tool opens these for loot (M3).
       if (b.looted) {
         // M11: once the undertaker's been burgled, an OUTLAW finds him... flexible.
@@ -396,6 +427,56 @@ const Game = {
   giveAmmo(n) {
     // Reserve ammo is abstracted: top up cylinder; surplus reloads instantly handled by R.
     this.player.ammo = Math.min(CFG.CYLINDER, this.player.ammo + n);
+  },
+
+  // --- M14: haunted fishing -------------------------------------------------
+  startFishing(fs) {
+    this.fishing = { spot: fs, state: 'waiting', t: rand(CFG.FISH_WAIT_MIN, CFG.FISH_WAIT_MAX), biteT: 0 };
+    const p = this.player; p.vx = 0; p.vy = 0;
+    Audio.click();
+    this.flashMsg('You cast a bone-hook into water that shouldn\'t be there...');
+  },
+  fishStrike() {
+    const F = this.fishing, p = this.player;
+    if (F.state === 'waiting') {
+      this.fishing = null;
+      this.flashMsg('Too eager — the ghost-water goes still.');
+      return;
+    }
+    // Weighted roll off the catch table.
+    const total = FISH_TABLE.reduce((s,f)=>s+f.w, 0);
+    let roll = Math.random()*total, fish = FISH_TABLE[0];
+    for (const f of FISH_TABLE) { roll -= f.w; if (roll <= 0) { fish = f; break; } }
+    p.fish.push({ name: fish.name, value: fish.value, haunted: !!fish.haunted });
+    this.fishing = null;
+    Audio.pickup();
+    this.floats.push(new FloatText(p.x, p.y-30, fish.name + '!', fish.haunted ? '#9adcf0' : '#e8d56a'));
+    this.flashMsg(fish.haunted
+      ? `It comes up GLOWING — a ${fish.name}. It has no business existing. ($${fish.value} to the right buyer)`
+      : `Caught a ${fish.name} out of bone-dry ground. ($${fish.value})`);
+  },
+  updateFishing(dt) {
+    // Keep the undertaker's door label honest about the catch on your saddle.
+    const p = this.player;
+    const und = this._undertaker || (this._undertaker = STRUCTURES.find(b=>b.action==='lockdoor'));
+    und.label = p.fish.length
+      ? 'Sell the catch ($' + p.fish.reduce((s,f)=>s+f.value,0) + ')'
+      : 'Pick the lock';
+    const F = this.fishing;
+    if (!F) return;
+    // Moving, dashing, taking a real hit, or dawn — the water lets go.
+    if (p.moveLen > 0 || p.dashTimer > 0 || !this.isNight()) {
+      this.fishing = null;
+      this.flashMsg(this.isNight() ? 'You reel in an empty hook.' : 'Dawn takes the water back mid-cast.');
+      return;
+    }
+    if (F.state === 'waiting') {
+      F.t -= dt;
+      if (F.t <= 0) { F.state = 'bite'; F.biteT = CFG.FISH_BITE_WINDOW; Audio.pickup(); Camera.addShake(1.5); }
+    } else {
+      F.biteT -= dt;
+      if (F.biteT <= 0) { this.fishing = null; this.flashMsg('Too slow — it slips back under the hardpan.'); }
+    }
   },
 
   // --- M13: the heist clock -------------------------------------------------
@@ -553,6 +634,7 @@ const Game = {
 
     Wanted.update(dt, p);
     this.updateHeist(dt);   // after Wanted so the alarm out-shouts the cooldown
+    this.updateFishing(dt);
     Missions.update(dt, p);
     // When the manhunt fully ends, the law gives up and clears out.
     if (Wanted.level>0) this._hadLaw = true;

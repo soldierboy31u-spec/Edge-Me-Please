@@ -246,6 +246,7 @@ class Player {
     // Milestone 3 — tools (Chris rides in already carrying his kit)
     this.hasLasso=!CFG.TOOL_GATING; this.hasLockpick=!CFG.TOOL_GATING; this.hasWhistle=!CFG.TOOL_GATING;
     this.deadeyeUnlocked=!CFG.TOOL_GATING;   // the ritual chamber (M3) wakes it
+    this.fish=[];                            // M14: the saddlebag of impossible fish
     this.lassoTimer=0;
     this.lassoAnim=null;                 // transient rope visual {tx,ty,t}
     this.deadeye=CFG.DEADEYE_MAX*0.5;    // meter, starts half-charged

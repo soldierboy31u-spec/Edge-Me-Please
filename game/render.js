@@ -71,6 +71,7 @@ function render() {
     for (const f of Game.floats)      { const p = at(f.x, f.y);     f.render(ctx, f.x-p[0], f.y-p[1]); }
 
     drawMissionMarker(ox, oy);
+    drawFishing();
     drawReticle();
     if (DBG.tint) drawLightingTint();   // cosmetic wash fades itself; night dark is gameplay
     drawDeadEye();
@@ -161,6 +162,7 @@ function render() {
 
   // Mission objective chevron (world-space, above the scene)
   drawMissionMarker(ox, oy);
+  drawFishing();
 
   // Aim reticle
   drawReticle();
@@ -692,6 +694,26 @@ function drawLandmarkGround(ox, oy, skipChests) {
       ctx.stroke();
       ctx.strokeStyle='rgba(120,100,64,0.25)'; ctx.lineWidth=40; ctx.stroke();
       ctx.restore();
+      // M14: at night the ghost-pools shimmer on the channel
+      const night = clamp(1 - Game.warmth(), 0, 1);
+      if (night > 0.55) {
+        const a = (night-0.55)/0.45;
+        for (const fs of FISH_SPOTS) {
+          if (!onScreen(fs.x,fs.y,70)) continue;
+          const fl = 0.6 + 0.4*Math.sin(Game.time*2.2 + fs.x*0.03);
+          ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha = a*0.5*fl;
+          const g = ctx.createRadialGradient(fs.x-ox, fs.y-oy, 2, fs.x-ox, fs.y-oy, 36);
+          g.addColorStop(0,'#9adcf0'); g.addColorStop(1,'rgba(90,160,220,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.ellipse(fs.x-ox, fs.y-oy, 36, 22, 0, 0, TAU); ctx.fill();
+          // slow ripple ring
+          const rr = 10 + ((Game.time*14 + fs.y) % 26);
+          ctx.globalAlpha = a*0.35*(1 - rr/36);
+          ctx.strokeStyle='#bce8f5'; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.ellipse(fs.x-ox, fs.y-oy, rr, rr*0.6, 0, 0, TAU); ctx.stroke();
+          ctx.restore();
+        }
+      }
     } else if (lm.type==='shrine') {
       if (!onScreen(lm.x,lm.y,160)) continue;
       ctx.save(); ctx.fillStyle='rgba(70,60,80,0.4)';
@@ -1033,6 +1055,33 @@ function drawDeadEye() {
 }
 
 /* ----- M4: mission objective marker + title cards ----- */
+// M14: the cast — line from Chris to the pool, bobber, and the strike cue.
+function drawFishing() {
+  const F = Game.fishing;
+  if (!F || Game.state!==STATE.PLAY) return;
+  const P = Game.player;
+  const [px, py] = W2S(P.x, P.y);
+  const [sx, sy] = W2S(F.spot.x, F.spot.y);
+  ctx.save();
+  // gut-line arcs from about hand height down to the water
+  ctx.strokeStyle='rgba(230,220,190,0.7)'; ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.moveTo(px, py-24);
+  ctx.quadraticCurveTo((px+sx)/2, Math.min(py-24, sy)-16, sx, sy-3);
+  ctx.stroke();
+  // bobber — jumps when the bite hits
+  const bob = F.state==='bite' ? Math.sin(Game.time*30)*3 : Math.sin(Game.time*3)*1.5;
+  ctx.fillStyle = F.state==='bite' ? '#ff6a3a' : '#e8d5a8';
+  ctx.beginPath(); ctx.arc(sx, sy-3+bob, 3.2, 0, TAU); ctx.fill();
+  if (F.state==='bite') {
+    ctx.fillStyle='#ffde7a'; ctx.font='bold 20px Georgia'; ctx.textAlign='center';
+    ctx.fillText('!', px, py-46 + Math.sin(Game.time*20)*2);
+    ctx.font='bold 11px Georgia';
+    ctx.fillText('[E] STRIKE', px, py-32);
+  }
+  ctx.restore();
+}
+
 function drawMissionMarker(ox, oy) {
   if (Game.state!==STATE.PLAY || !Missions.marker) return;
   const m = Missions.marker;
@@ -1207,6 +1256,7 @@ function drawHUD() {
   if (p.hasLasso) tools.push('Lasso [F]');
   if (p.hasWhistle) tools.push('Whistle [H]');
   if (p.hasLockpick) tools.push('Lockpick');
+  if (p.fish.length) tools.push('🐟×' + p.fish.length + ' ($' + p.fish.reduce((s,f)=>s+f.value,0) + ')');
   ctx.fillStyle='#b8a880'; ctx.font='12px Georgia';
   ctx.fillText(tools.length ? tools.join('   ') : 'Tools: earn \'em workin\' for Darryl', 28, 158);
 
