@@ -395,7 +395,7 @@ const BossSprite = {
   img: null, ink: null, red: null,
   load() {
     if (!CFG.USE_SPRITES) return;
-    Assets.loadImage('boss', 'assets/characters/boss/boss.png').then((img) => {
+    Assets.loadImage('boss', 'assets/characters/Boss/boss.png').then((img) => {   // capital B — GitHub Pages is case-sensitive
       if (img) { this.img = img;
         if (CFG.FX_OUTLINE) this.ink = EnemySprites._tint(img, '#1a120a');
         this.red = EnemySprites._tint(img, '#e04030'); }
