@@ -42,19 +42,26 @@ tar-spit fans, devil-brood summons, phase-2 sink-and-erupt (puddle tracks then L
 dodge window), phase-3 BURNING. Kill it → sigils go dark, dawn returns, Darryl closes
 the arc. **The six-mission story arc is complete.**
 
-**Next after that →** the post-arc plan, in order:
-- **M11 — Honor System**: -100..+100 reputation. Down: civilians (-18), lawmen (-6),
-  bank jobs (-12), burglary (-4), fencing (-6). Up: missions (+8), honest choices,
-  shrine coins (+2), demon kills (+1). Tiers OUTLAW/NO-GOOD/DRIFTER/UPSTANDING/FOLK
-  HERO drive ammo prices, law heat rate, Darryl's mouth — and at OUTLAW the Lucky
-  Tooth refuses you while the **undertaker turns black-market dealer**.
-- **M12 — Tool Gating** (`CFG.TOOL_GATING`): earn the kit through the story —
-  dynamite from M1, lasso with M2, lockpicks with M3, Dead Eye in the ritual
-  chamber, whistle with M4. Sandbox pickups can still hand you dynamite early.
-- **M13 — The Hicksville Heist**: the bank becomes a timed vault crack — hold the
-  lobby through escalating posse waves, then an escape ride to the flats with the take.
-- **M14 — Haunted Fishing**: night fishing in the dry riverbed; impossible fish
-  sell to the Undertaker & Taxidermy. The desert stays weird.
+**M11 — Honor System: ✅ DONE** — `Honor` (systems.js), -100..+100, five tiers
+OUTLAW/NO-GOOD/DRIFTER/UPSTANDING/FOLK HERO. Drives Lucky Tooth ammo prices
+($3/$4/$5/$7), OUTLAW refusal + the **undertaker black-market** ($6 shells once
+his door's been burgled), `Wanted.add` heat multiplier (1.25×/0.8×), Darryl's
+idle lines, and the HUD centre-out honor meter.
+**M12 — Tool Gating: ✅ DONE** — `CFG.TOOL_GATING` (default on). Fresh runs =
+revolver + dash. Dynamite ×3 with M1's payout, lasso at M2's briefing, lockpicks
+at M3's, Dead Eye wakes in the ritual chamber, whistle at M4's. Golden float per
+grant; HUD lists only owned kit.
+**M13 — The Hicksville Heist: ✅ DONE** — `Game.heist` (game.js): 18s vault crack
+that only ticks while you hold the lobby, alarm ramps to 5★ with the manhunt
+pinned on you, $250–420 strongbox is CARRIED — money lands only when Darryl
+fences it at the tent (-14 honor). 240s restock; HUD crack/carry banners.
+**M14 — Haunted Fishing: ✅ DONE** — `FISH_SPOTS`/`FISH_TABLE` (world.js), cast
+minigame in game.js (wait → bite → 0.6s [E] strike; move/dawn cancels). Ghost-
+pools shimmer on the riverbed at night only; six-fish table topped by the
+GRINNING JAWBONE FISH ($90); the Undertaker & Taxidermy buys the catch.
+
+**Next after that →** the parking lot is drained. Ideas welcome: endgame/credits
+beat, bounty hunters at low honor, more demon variants, GitHub Pages deploy.
 **The sprite set is COMPLETE** — all sheets in.
 *(Sprite status: idle + walk + aim + shoot + dash + hurt + mounted + horse-idle IN, `USE_SPRITES` ON.
 Mounted = horse+rider in one 128px cell, scaleMul 1.4; unridden horses now use
