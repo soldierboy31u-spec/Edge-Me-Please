@@ -94,7 +94,11 @@ Tone: heroic, chaotic, funny, rugged, dark. Look: hand-drawn cartoon western.
 
 ## How to run it
 
-- **Play:** double-click `index.html`. That's it — no server needed.
+- **Play online:** https://soldierboy31u-spec.github.io/Edge-Me-Please/ (GitHub Pages,
+  deploys from `main` — push and it's live in ~a minute)
+- **Play locally:** double-click `index.html`. That's it — no server needed.
+- NOTE: Pages is case-sensitive; asset paths in code must match folder case exactly
+  (e.g. `assets/characters/Boss/`). Windows won't catch a mismatch — the live site will.
 - **Old single-file backup:** `redemptions-edge.html` (pre-split snapshot; keep it).
 - **Deploy:** push the folder to GitHub Pages; `index.html` is the entry point.
 
