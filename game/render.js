@@ -701,11 +701,11 @@ function drawLandmarkGround(ox, oy, skipChests) {
         for (const fs of FISH_SPOTS) {
           if (!onScreen(fs.x,fs.y,70)) continue;
           const fl = 0.6 + 0.4*Math.sin(Game.time*2.2 + fs.x*0.03);
-          ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha = a*0.5*fl;
-          const g = ctx.createRadialGradient(fs.x-ox, fs.y-oy, 2, fs.x-ox, fs.y-oy, 36);
-          g.addColorStop(0,'#9adcf0'); g.addColorStop(1,'rgba(90,160,220,0)');
+          ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha = a*0.85*fl;
+          const g = ctx.createRadialGradient(fs.x-ox, fs.y-oy, 2, fs.x-ox, fs.y-oy, 44);
+          g.addColorStop(0,'#aee6f5'); g.addColorStop(1,'rgba(90,160,220,0)');
           ctx.fillStyle = g;
-          ctx.beginPath(); ctx.ellipse(fs.x-ox, fs.y-oy, 36, 22, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(fs.x-ox, fs.y-oy, 44, 27, 0, 0, TAU); ctx.fill();
           // slow ripple ring
           const rr = 10 + ((Game.time*14 + fs.y) % 26);
           ctx.globalAlpha = a*0.35*(1 - rr/36);
