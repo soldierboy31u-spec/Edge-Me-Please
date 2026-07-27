@@ -42,6 +42,7 @@ function loop(now) {
   dt = Math.min(dt, 0.05);
 
   DBG.frame(now);
+  TouchUI.frame();   // mobile sticks -> Input, before anything reads it
   handleMeta();
   handleDebugKeys();
   Game.update(dt);
@@ -71,6 +72,7 @@ function handleDebugKeys() {
    BOOTSTRAP
    --------------------------------------------------------------------------- */
 Input.init(canvas);
+TouchUI.init(canvas);   // M15: mobile twin-stick layer (dormant until first touch)
 // Initialize audio on first user gesture (browser autoplay policy).
 addEventListener('keydown', ()=>{ Audio.ensure(); Audio.resume(); }, { once:true });
 addEventListener('mousedown', ()=>{ Audio.ensure(); Audio.resume(); }, { once:true });

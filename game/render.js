@@ -77,6 +77,7 @@ function render() {
     drawDeadEye();
     drawHUD();
     drawMinimap();
+    drawTouchControls();   // M15: mobile sticks/buttons over the HUD
     drawTitleCard();
     if (Game.state===STATE.START) drawStartScreen();
     if (Game.state===STATE.PAUSE) drawPauseScreen();
@@ -176,6 +177,7 @@ function render() {
   // HUD
   drawHUD();
   drawMinimap();
+  drawTouchControls();   // M15: mobile sticks/buttons over the HUD
 
   // Mission title card (over HUD, under full-screen menus)
   drawTitleCard();
@@ -1384,7 +1386,10 @@ function drawHUD() {
 
 function drawMinimap() {
   if (Game.state===STATE.START) return;
-  const MW=180, MH=180, MX=CFG.VIEW_W-MW-20, MY=CFG.VIEW_H-MH-20;
+  // Touch mode: the aim stick owns the bottom-right corner, so the map
+  // rides up under the money panel instead.
+  const MW=180, MH=180, MX=CFG.VIEW_W-MW-20,
+        MY = (typeof TouchUI!=='undefined' && TouchUI.active) ? 126 : CFG.VIEW_H-MH-20;
   const sx=MW/CFG.WORLD_W, sy=MH/CFG.WORLD_H;
   ctx.save();
   ctx.globalAlpha=0.9;

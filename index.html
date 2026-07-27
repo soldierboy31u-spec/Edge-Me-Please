@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>Redemption's Edge</title>
 <style>
   /* ===========================================================================
@@ -23,6 +23,10 @@
     font-family: 'Georgia', 'Times New Roman', serif;
     color: var(--sepia);
     user-select: none;
+    /* mobile: no pull-to-refresh, no double-tap zoom, no long-press menus */
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   #game-wrap {
     position: fixed; inset: 0;
@@ -36,6 +40,7 @@
     box-shadow: 0 0 60px rgba(0,0,0,0.9), inset 0 0 120px rgba(0,0,0,0.5);
     image-rendering: optimizeQuality;
     max-width: 100%; max-height: 100%;
+    touch-action: none;   /* the game owns every gesture on the canvas */
   }
   /* Vignette overlay drawn over the canvas for cinematic framing */
   #vignette {
@@ -59,21 +64,22 @@
 
   <!-- ?v= is a cache-buster: bump it whenever game/*.js changes so browsers
        (file:// and localhost alike) can't serve a stale build. -->
-  <script src="game/config.js?v=51"></script>
-  <script src="game/utils.js?v=51"></script>
-  <script src="game/input.js?v=51"></script>
-  <script src="game/audio.js?v=51"></script>
-  <script src="game/camera.js?v=51"></script>
-  <script src="game/world.js?v=51"></script>
-  <script src="game/assets.js?v=51"></script>
-  <script src="game/chris-manifest.js?v=51"></script>
-  <script src="game/horse-manifest.js?v=51"></script>
-  <script src="game/sprites.js?v=51"></script>
-  <script src="game/entities.js?v=51"></script>
-  <script src="game/systems.js?v=51"></script>
-  <script src="game/game.js?v=51"></script>
-  <script src="game/render.js?v=51"></script>
-  <script src="game/main.js?v=51"></script>
+  <script src="game/config.js?v=52"></script>
+  <script src="game/utils.js?v=52"></script>
+  <script src="game/input.js?v=52"></script>
+  <script src="game/touch.js?v=52"></script>
+  <script src="game/audio.js?v=52"></script>
+  <script src="game/camera.js?v=52"></script>
+  <script src="game/world.js?v=52"></script>
+  <script src="game/assets.js?v=52"></script>
+  <script src="game/chris-manifest.js?v=52"></script>
+  <script src="game/horse-manifest.js?v=52"></script>
+  <script src="game/sprites.js?v=52"></script>
+  <script src="game/entities.js?v=52"></script>
+  <script src="game/systems.js?v=52"></script>
+  <script src="game/game.js?v=52"></script>
+  <script src="game/render.js?v=52"></script>
+  <script src="game/main.js?v=52"></script>
 
 </body>
 </html>
