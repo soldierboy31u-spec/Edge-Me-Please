@@ -34,6 +34,8 @@ const Game = {
     for (const b of STRUCTURES) b.looted = false;   // re-lock pickable doors
     this._hadLaw = false;                            // manhunt bookkeeping
     this.nightForce = 0; this.nightTarget = 0; this.demonTimer = 0;
+    // M13: heist state — idle | cracking | carrying (+ restock cooldown)
+    this.heist = { state:'idle', t:0, take:0, cooldown:0, stalled:false };
     // Chris King starts at Darryl's camp — somewhere to belong before Hicksville judges him.
     this.player = new Player(CAMP_CX, CAMP_CY + 130);
     this.enemies = []; this.bullets = []; this.particles = [];
@@ -323,6 +325,17 @@ const Game = {
       else if (p.hp>=CFG.PLAYER_MAX_HP) this.flashMsg('You ain’t hurt. Barkeep waves you off.');
       else this.flashMsg('Barkeep: "No coin, no cot." ($10)');
     } else if (b.action==='camp') {
+      // M13: carrying the strongbox? Darryl fences it first, questions never.
+      if (this.heist.state==='carrying') {
+        const take = this.heist.take;
+        p.money += take; this.score += take;
+        Honor.add(CFG.HEIST_HONOR, true);
+        this.heist.state='idle'; this.heist.t=0; this.heist.cooldown=CFG.HEIST_COOLDOWN;
+        this.floats.push(new FloatText(p.x, p.y-30, '+$'+take, '#ffde7a'));
+        Audio.money();
+        this.flashMsg(`Darryl pries the strongbox open: +$${take}. "The BANK, Chris?! The whole— ...that's a real nice haul."`);
+        return;
+      }
       // Darryl's camp — free full heal + ammo top-up. Your home base.
       p.hp=CFG.PLAYER_MAX_HP; this.giveAmmo(CFG.CYLINDER);
       this.flashMsg('Darryl: "Sit by the fire, ya idiot. Patched and loaded."');
@@ -341,10 +354,16 @@ const Game = {
       else if (p.money>=cost) { p.money-=cost; Wanted.clear(); this.flashMsg('Bounty paid off. Crook pockets it and looks away.'); }
       else this.flashMsg(`Crook: "Your bounty's $${cost}. Come back with it."`);
     } else if (b.action==='bank') {
-      // Robbing the bank: cash + heavy heat (outlaw freedom).
-      const haul = randInt(60,120);
-      p.money += haul; Wanted.add(3); Honor.add(-12, true); Camera.addShake(8);
-      this.flashMsg(`Cracked the safe! +$${haul} — the whole town heard that.`);
+      // M13: THE HICKSVILLE HEIST — a timed vault crack, not a smash-and-grab.
+      const H = this.heist;
+      if (H.state==='carrying') { this.flashMsg('The strongbox is under your arm. RIDE — Darryl\'s camp, before the county arrives!'); return; }
+      if (H.cooldown>0) { this.flashMsg('The vault sits empty behind a shiny new lock. Give the bank time to restock.'); return; }
+      if (H.state==='cracking') { this.flashMsg('The drill\'s already chewing. Keep the law off it!'); return; }
+      H.state='cracking'; H.t=0; H.stalled=false;
+      Wanted.add(2);
+      for (let i=0;i<2;i++) this.spawnLawman(p);
+      Camera.addShake(6);
+      this.flashMsg('You put the drill to the vault — the alarm bell ROARS. Hold the lobby while it chews!');
     } else if (b.action==='chapel' || b.action==='lockdoor') {
       // Lockpick tool opens these for loot (M3).
       if (b.looted) {
@@ -377,6 +396,40 @@ const Game = {
   giveAmmo(n) {
     // Reserve ammo is abstracted: top up cylinder; surplus reloads instantly handled by R.
     this.player.ammo = Math.min(CFG.CYLINDER, this.player.ammo + n);
+  },
+
+  // --- M13: the heist clock -------------------------------------------------
+  updateHeist(dt) {
+    const H = this.heist, p = this.player;
+    if (H.cooldown > 0) H.cooldown -= dt;
+    const bank = STRUCTURES.find(b=>b.action==='bank');
+    // The [E] prompt tells the truth about the vault's state.
+    bank.label = H.state==='cracking' ? 'The drill is chewing — hold the lobby!'
+               : H.state==='carrying' ? 'RIDE! Get the take to Darryl'
+               : H.cooldown>0        ? 'Vault empty — restocking'
+                                     : 'Crack the vault (raises HELL)';
+    if (H.state !== 'cracking') return;
+
+    const near = dist(p.x,p.y,bank.door.x,bank.door.y) < 110;
+    if (near) {
+      H.t += dt; H.stalled = false;
+      // The alarm ratchets the county: heat climbs to 5 stars and the manhunt
+      // pins to the bank — the existing spawner scales the waves off level.
+      Wanted.heat = clamp(Wanted.heat + dt*CFG.HEIST_HEAT_RAMP, 0, CFG.WANTED_MAX);
+      Wanted.level = Math.ceil(Wanted.heat - 1e-6);
+      Wanted.searching = false;
+      Wanted.lastSeen.x = p.x; Wanted.lastSeen.y = p.y;
+    } else if (!H.stalled) {
+      H.stalled = true;
+      this.flashMsg('The drill stalls without a hand on it!');
+    }
+    if (H.t >= CFG.HEIST_CRACK_TIME) {
+      H.state = 'carrying';
+      H.take = randInt(CFG.HEIST_TAKE_MIN, CFG.HEIST_TAKE_MAX);
+      Camera.addShake(8);
+      Audio.money();
+      this.flashMsg(`The vault swings open — $${H.take} in the strongbox! Ride it to Darryl\'s camp!`);
+    }
   },
 
   // --- Milestone 2 interactions -------------------------------------------
@@ -499,6 +552,7 @@ const Game = {
     for (const f of this.floats) f.update(dt);
 
     Wanted.update(dt, p);
+    this.updateHeist(dt);   // after Wanted so the alarm out-shouts the cooldown
     Missions.update(dt, p);
     // When the manhunt fully ends, the law gives up and clears out.
     if (Wanted.level>0) this._hadLaw = true;

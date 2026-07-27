@@ -1247,6 +1247,29 @@ function drawHUD() {
     ctx.fillText(tag, CFG.VIEW_W/2, 56);
   }
 
+  // M13: heist banner (top-centre, below the objective row so both can show)
+  const H = Game.heist;
+  if (H && H.state!=='idle') {
+    ctx.textAlign='center';
+    if (H.state==='cracking') {
+      const f = clamp(H.t/CFG.HEIST_CRACK_TIME, 0, 1);
+      const bw=240, bx=CFG.VIEW_W/2-bw/2, by=98;
+      ctx.fillStyle='rgba(20,14,6,0.7)'; ctx.fillRect(bx-8, by-16, bw+16, 34);
+      ctx.fillStyle='#e8c45a'; ctx.font='bold 12px Georgia';
+      ctx.fillText(H.stalled ? 'DRILL STALLED — GET BACK TO THE VAULT!' : 'THE DRILL CHEWS… HOLD THE LOBBY', CFG.VIEW_W/2, by-4);
+      ctx.fillStyle='#2a1414'; ctx.fillRect(bx, by, bw, 10);
+      ctx.fillStyle = H.stalled ? '#8a5a2a' : '#e8b23a'; ctx.fillRect(bx, by, bw*f, 10);
+      ctx.strokeStyle='#1a0a0a'; ctx.lineWidth=1.5; ctx.strokeRect(bx, by, bw, 10);
+    } else if (H.state==='carrying') {
+      const txt = '💰 $'+H.take+' — GET THE TAKE TO DARRYL\'S CAMP';
+      ctx.font='bold 13px Georgia';
+      const w = ctx.measureText(txt).width + 26;
+      ctx.fillStyle='rgba(30,20,6,0.72)'; ctx.fillRect(CFG.VIEW_W/2-w/2, 94, w, 22);
+      ctx.strokeStyle='rgba(220,170,70,0.8)'; ctx.lineWidth=1.5; ctx.strokeRect(CFG.VIEW_W/2-w/2, 94, w, 22);
+      ctx.fillStyle='#ffde7a'; ctx.fillText(txt, CFG.VIEW_W/2, 110);
+    }
+  }
+
   // Mission objective (top-centre, under the wanted stars)
   if (Missions.objective && !Missions.card) {
     const txt = '◆ ' + Missions.objective;
@@ -1344,6 +1367,12 @@ function drawMinimap() {
     ctx.setLineDash([4,3]); ctx.lineWidth=1.5;
     ctx.strokeStyle = Wanted.searching ? `rgba(232,196,90,${(0.5+0.4*Math.sin(Game.time*5)).toFixed(2)})` : 'rgba(232,90,58,0.85)';
     ctx.beginPath(); ctx.arc(mzx,mzy,mzr,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // M13: while carrying the take, the camp glows gold on the map
+  if (Game.heist && Game.heist.state==='carrying') {
+    const gx=MX+CAMP_CX*sx, gy=MY+CAMP_CY*sy;
+    ctx.fillStyle = (Math.floor(Game.time*4)%2===0) ? '#ffde7a' : '#c89a3a';
+    ctx.fillRect(gx-3, gy-3, 6, 6);
   }
   // Enemies (the boss shows as a fat bone-white blip)
   for (const e of Game.enemies) {

@@ -158,6 +158,14 @@ const CFG = {
   HONOR_MAX: 100,            // honor runs -100..+100
   TOOL_GATING: true,         // earn tools through the missions (false = all from the start)
 
+  // --- M13 The Hicksville Heist ---
+  HEIST_CRACK_TIME: 18,      // s the drill needs (only counts while you hold the lobby)
+  HEIST_HEAT_RAMP: 0.28,     // wanted heat per second while the drill chews (alarm)
+  HEIST_TAKE_MIN: 250,       // strongbox haul range — the biggest money in the game...
+  HEIST_TAKE_MAX: 420,
+  HEIST_HONOR: -14,          // ...and the biggest stain on your name
+  HEIST_COOLDOWN: 240,       // s before the bank restocks the vault
+
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
   FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —
