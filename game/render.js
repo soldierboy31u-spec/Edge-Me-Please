@@ -1160,27 +1160,25 @@ function drawLightingTint() {
   const g = Math.round(lerp(80,  176, warm));
   const b = Math.round(lerp(160,  96, warm));
   ctx.save();
-  ctx.globalCompositeOperation='overlay';
-  ctx.globalAlpha = 0.12 * DBG.washFade;
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  // PERF: 'overlay' is the priciest composite we've measured (~54ms/frame
+  // full-screen on weak GPUs) — skip the pass entirely once the adaptive
+  // fade has taken it out; an alpha-0 fill still pays full fill-rate.
+  const tintA = 0.12 * DBG.washFade;
+  if (tintA > 0.01) {
+    ctx.globalCompositeOperation='overlay';
+    ctx.globalAlpha = tintA;
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  }
   ctx.restore();
-  // Night falls for real (M9): a cool multiply that deepens as the light goes
-  // cold. Demons rise in the dark, so the dark has to be felt — this one is
-  // gameplay-relevant, so it doesn't ride the adaptive washFade.
+  // Night falls for real (M9): gameplay-relevant, so it never sheds — which
+  // is exactly why it must be ONE source-over fill (near-free, unlike the
+  // multiply+veil pair it replaces).
   const nightAmt = clamp((0.45 - warm) / 0.45, 0, 1);
   if (nightAmt > 0.01) {
     ctx.save();
-    // darken...
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.45 * nightAmt;
-    ctx.fillStyle = '#46568c';
-    ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
-    // ...then cool: a thin navy veil shifts the hue moonward (multiply alone
-    // can't turn orange sand blue, it just muddies it red)
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.17 * nightAmt;
-    ctx.fillStyle = '#1e2a52';
+    ctx.globalAlpha = 0.38 * nightAmt;
+    ctx.fillStyle = '#101a38';   // moonlit navy — darkens and cools in one pass
     ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
     ctx.restore();
   }
