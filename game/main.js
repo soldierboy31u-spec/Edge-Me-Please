@@ -6,10 +6,20 @@
 /* ---------------------------------------------------------------------------
    12. STATE TRANSITIONS + MAIN LOOP
    --------------------------------------------------------------------------- */
+const inRect = (mx,my,r) => r && mx>r.x && mx<r.x+r.w && my>r.y && my<r.y+r.h;
 function handleMeta() {
   // Global key handling for state machine (independent of play update).
   if (Game.state===STATE.START) {
     // 1/2/3 pick difficulty without starting; any other key begins.
+    // Touch: a tap on a difficulty pill selects it WITHOUT starting the ride.
+    if (Input.mouse.down && typeof START_PILLS !== 'undefined' && START_PILLS) {
+      for (const p of START_PILLS) {
+        if (inRect(Input.mouse.x, Input.mouse.y, p)) {
+          Game.difficulty = p.id; Input.mouse.down = false;
+          Audio.ensure(); Audio.click(); return;
+        }
+      }
+    }
     if (Input.hit('1')) { Game.difficulty='easy';   Audio.ensure(); Audio.click(); }
     else if (Input.hit('2')) { Game.difficulty='normal'; Audio.ensure(); Audio.click(); }
     else if (Input.hit('3')) { Game.difficulty='hard';   Audio.ensure(); Audio.click(); }
@@ -21,6 +31,17 @@ function handleMeta() {
   } else if (Game.state===STATE.PLAY) {
     if (Input.hit('escape') || Input.hit('p')) Game.state=STATE.PAUSE;
   } else if (Game.state===STATE.PAUSE) {
+    // Touch: RESUME button + firing-mode toggle (drawn by drawPauseScreen).
+    if (Input.mouse.down && typeof PAUSE_BTNS !== 'undefined' && PAUSE_BTNS) {
+      if (inRect(Input.mouse.x, Input.mouse.y, PAUSE_BTNS.resume)) {
+        Input.mouse.down = false; Game.state = STATE.PLAY; Audio.click();
+      } else if (inRect(Input.mouse.x, Input.mouse.y, PAUSE_BTNS.aim)) {
+        Input.mouse.down = false;
+        TouchUI.aimMode = TouchUI.aimMode === 'assist' ? 'manual' : 'assist';
+        try { localStorage.setItem('re_aimMode', TouchUI.aimMode); } catch (e) {}
+        Audio.click();
+      }
+    }
     if (Input.hit('escape') || Input.hit('p')) Game.state=STATE.PLAY;
     if (Input.hit('n')) { Game.reset(); Game.state=STATE.PLAY; }
   } else if (Game.state===STATE.GAMEOVER) {
@@ -35,14 +56,33 @@ function handleMeta() {
 }
 
 let lastT = performance.now();
+let _capThen = performance.now();
 function loop(now) {
+  requestAnimationFrame(loop);
+  // 60fps cap: 120Hz phones otherwise run the whole game at double rate and
+  // choke exactly when a fight starts. `then = now - (delta % interval)` is
+  // the drift-free accumulator form (plain `then = now` paces unevenly).
+  const capMs = 1000/60;
+  const capDelta = now - _capThen;
+  if (capDelta < capMs - 0.1) return;
+  _capThen = now - (capDelta % capMs);
+
   let dt = (now - lastT) / 1000;
   lastT = now;
   // Clamp dt to avoid huge jumps after tab switches (prevents tunneling / chaos).
   dt = Math.min(dt, 0.05);
 
   DBG.frame(now);
-  TouchUI.frame();   // mobile sticks -> Input, before anything reads it
+  // Adaptive resolution: at the bottom tier render 3/4-size internally and let
+  // CSS stretch it — ~44% less fill work on every pass. render() compensates
+  // via a base transform so all drawing stays in logical 1280x720 coords.
+  const rs = DBG.auto && DBG.tier === 0 ? 0.75 : 1;
+  if (DBG.resScale !== rs) {
+    DBG.resScale = rs;
+    canvas.width  = Math.round(CFG.VIEW_W * rs);
+    canvas.height = Math.round(CFG.VIEW_H * rs);
+  }
+  TouchUI.frame(dt);   // mobile sticks -> Input, before anything reads it
   handleMeta();
   handleDebugKeys();
   Game.update(dt);
@@ -50,8 +90,6 @@ function loop(now) {
   render();
   DBG.renderMs = +(performance.now() - _r0).toFixed(1);
   Input.endFrame();
-
-  requestAnimationFrame(loop);
 }
 
 // Backtick toggles the profiler; while it's open, number keys flip each system.

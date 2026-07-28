@@ -496,6 +496,7 @@ class Player {
     Game.spawnMuzzle(muzzleX, muzzleY, this.aim);
     Camera.addShake(4);
     Audio.shot();
+    TouchUI.buzz(12);   // tactile tick on Android; no-op elsewhere
     // Knockback / recoil push
     this.vx -= Math.cos(this.aim) * 40;
     this.vy -= Math.sin(this.aim) * 40;
@@ -508,6 +509,7 @@ class Player {
     this.hurtFlash = 0.35;
     Camera.addShake(6);
     Audio.hurt();
+    TouchUI.buzz(45);   // getting shot should thump harder than shooting
     if (this.hp <= 0) { this.hp=0; this.dead=true; }
   }
 

@@ -649,6 +649,10 @@ const Game = {
     this.bullets = this.bullets.filter(b=>!b.dead);
     this.enemies = this.enemies.filter(e=>!e.dead);
     this.particles = this.particles.filter(p=>!p.dead);
+    // Perf: big firefights can stack hundreds of particles — trim the oldest
+    // past the tier budget (the newest bursts are the ones the eye tracks).
+    const pCap = DBG.particleCap();
+    if (this.particles.length > pCap) this.particles.splice(0, this.particles.length - pCap);
     this.pickups = this.pickups.filter(p=>!p.dead);
     this.floats = this.floats.filter(f=>!f.dead);
     this.townsfolk = this.townsfolk.filter(t=>!t.dead);

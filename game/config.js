@@ -174,8 +174,8 @@ const CFG = {
 
   // --- M6 Art Pass: film & ink FX (purely cosmetic; 0/false disables each) ---
   FX_GRAIN: 0.055,           // animated film-grain alpha over the whole frame
-  FX_GRAIN_BLEND: 'overlay', // richer look; full-screen so it's the priciest FX —
-                             // adaptive quality (DBG.tier) drops it on slow hardware
+  FX_GRAIN_BLEND: 'source-over', // 'overlay' reads a hair richer but costs ~54ms/frame
+                             // on weak GPUs; at this alpha the two are near-identical
   FX_VIGNETTE: 0.32,         // darkened corners (old-photo framing)
   FX_SEPIA: 0.10,            // warm sepia wash strength
   FX_OUTLINE: true,          // ink outlines on Chris + procedural folk
@@ -189,6 +189,11 @@ const CFG = {
   ISO: true,                 // master switch; false = M7 top-down look
   ISO_XS: 0.85,              // horizontal projection scale (screenX = (x-y)*XS, screenY = (x+y)*XS/2)
   ISO_WALL_H: 52,            // placeholder building wall height on screen (px)
+
+  // --- M16 mobile firing assist (TouchUI 'assist' mode; all world-space px) ---
+  TOUCH_ASSIST_CONE: 0.44,   // rad (~25°) — stick direction snaps to an enemy inside this
+  TOUCH_ASSIST_RANGE: 720,   // how far directed assist will reach
+  TOUCH_AUTO_RANGE: 560,     // dirless thumb-down auto-targets hostiles inside this
 };
 
 const STATE = { START: 0, PLAY: 1, PAUSE: 2, GAMEOVER: 3 };
@@ -218,8 +223,10 @@ const DBG = {
   outline: true, grain: true, sepia: true,   // 4 / 5 / 6
   vignette: true, art: true, tint: true,     // 7 / 8 / 9
   // Adaptive quality: measures real FPS and sheds the priciest full-screen FX
-  // on slow hardware. tier 2 = full look, 1 = drop grain, 0 = drop all washes.
-  auto: true, tier: 2,
+  // on slow hardware. tier 2 = full look, 1 = drop grain, 0 = drop all washes
+  // AND render at 3/4 internal resolution (resScale — the heavy fill-rate lever;
+  // main.js resizes the backing store, CSS keeps the on-screen size).
+  auto: true, tier: 2, resScale: 1,
   // Smooth 0..1 multipliers the renderer scales its wash/grain alphas by —
   // a tier change FADES over ~1s instead of snapping (the hard cut read as a
   // sudden night->day flip). At ~0 the draw is skipped entirely (the saving).
@@ -260,6 +267,9 @@ const DBG = {
   // effective FX flags = manual toggle AND the adaptive fade is still visible
   fxGrain() { return this.grain && this.grainFade > 0.02; },
   fxWash()  { return this.washFade > 0.02; },   // sepia/vignette/tint
+  // Live particles are trimmed to this each frame (oldest dropped first) —
+  // GC pressure and overdraw both scale with the swarm.
+  particleCap() { return [140, 300, 500][this.tier]; },
 };
 
 // Difficulty modes. Multipliers scale enemy stats off the base CFG values.

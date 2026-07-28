@@ -21,9 +21,11 @@ const Input = {
     });
     addEventListener('keyup', e => { this.keys[e.key.toLowerCase()] = false; });
     canvas.addEventListener('mousemove', e => {
+      // Map to LOGICAL view coords (CFG.VIEW_*), not the backing store —
+      // adaptive quality may shrink canvas.width below the logical size.
       const r = canvas.getBoundingClientRect();
-      this.mouse.x = (e.clientX - r.left) * (canvas.width / r.width);
-      this.mouse.y = (e.clientY - r.top) * (canvas.height / r.height);
+      this.mouse.x = (e.clientX - r.left) * (CFG.VIEW_W / r.width);
+      this.mouse.y = (e.clientY - r.top) * (CFG.VIEW_H / r.height);
     });
     canvas.addEventListener('mousedown', e => {
       if (e.button === 0) this.mouse.down = true;

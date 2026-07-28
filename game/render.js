@@ -7,9 +7,15 @@
    11. RENDERING
    --------------------------------------------------------------------------- */
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+// alpha:false — the page never shows through the canvas, and telling the
+// browser so skips a per-frame compositing blend (free mobile win).
+const ctx = canvas.getContext('2d', { alpha: false });
 
 function render() {
+  // Base transform: all drawing uses logical 1280x720 coords; when adaptive
+  // quality shrinks the backing store (DBG.resScale<1) this scales everything
+  // down to fit. save/restore preserve it; isoTransform composes with it.
+  ctx.setTransform(DBG.resScale, 0, 0, DBG.resScale, 0, 0);
   const ox = Camera.ox, oy = Camera.oy;
 
   if (CFG.ISO) {
@@ -190,6 +196,29 @@ function render() {
   drawFilmFX();
 }
 
+/* ----- M16 perf: cached radial glow sprites --------------------------------
+   createRadialGradient allocates + rasterizes every call; the torch/pool/
+   ghost glows were doing it per object per frame. Bake each colour once to a
+   64px-radius sprite and drawImage it scaled — same look, ~free. ----- */
+const _glowCache = {};
+function glowSprite(color) {
+  let cv = _glowCache[color];
+  if (!cv) {
+    cv = document.createElement('canvas'); cv.width = cv.height = 128;
+    const c = cv.getContext('2d');
+    const g = c.createRadialGradient(64, 64, 2, 64, 64, 64);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+    _glowCache[color] = cv;
+  }
+  return cv;
+}
+// Draw a cached glow centred at (x,y) with radii rx/ry (ry defaults round).
+function drawGlow(color, x, y, rx, ry) {
+  ry = ry || rx;
+  ctx.drawImage(glowSprite(color), x - rx, y - ry, rx * 2, ry * 2);
+}
+
 /* ----- M6 Art Pass: film grain / vignette / sepia (cached offscreen) ----- */
 let _vignetteCv = null;
 let _grainCvs = null;
@@ -226,10 +255,13 @@ function drawFilmFX() {
   if (!sepia && !vign && !grain) return;
   if (!_vignetteCv) _initFilmFX();
   ctx.save();
-  // Warm sepia wash (alpha rides the adaptive fade so tier changes ease in/out)
+  // Warm sepia wash (alpha rides the adaptive fade so tier changes ease in/out).
+  // 'multiply' is the classic slow-path composite on mobile GPUs — keep it for
+  // the full-quality tier only; below that a plain warm overlay reads ~the same.
   if (sepia) {
-    ctx.globalCompositeOperation='multiply';
-    ctx.globalAlpha = CFG.FX_SEPIA * DBG.washFade;
+    const rich = DBG.tier === 2;
+    ctx.globalCompositeOperation = rich ? 'multiply' : 'source-over';
+    ctx.globalAlpha = CFG.FX_SEPIA * DBG.washFade * (rich ? 1 : 0.8);
     ctx.fillStyle = '#e0b070';
     ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
     ctx.globalCompositeOperation='source-over';
@@ -312,8 +344,9 @@ function computeIsoView() {
 }
 // Set the canvas transform so drawing in WORLD coords lands iso-projected.
 function isoTransform() {
-  const XS = CFG.ISO_XS, o = W2S(0, 0);
-  ctx.setTransform(XS, XS*0.5, -XS, XS*0.5, o[0], o[1]);
+  const XS = CFG.ISO_XS, o = W2S(0, 0), rs = DBG.resScale;
+  // Composed with the base resolution scale (this is an ABSOLUTE transform).
+  ctx.setTransform(XS*rs, XS*0.5*rs, -XS*rs, XS*0.5*rs, o[0]*rs, o[1]*rs);
 }
 
 // Iso ground: base wash in screen space, then patches/streets/border in
@@ -630,10 +663,8 @@ function drawCampfire(ox, oy) {
   if (tx<-80||tx>CFG.VIEW_W+80||ty<-80||ty>CFG.VIEW_H+80) return;
   CAMPFIRE.flick += 0.3;
   ctx.save();
-  // warm ground glow
-  const g=ctx.createRadialGradient(tx,ty,4,tx,ty,90);
-  g.addColorStop(0,'rgba(255,170,70,0.35)'); g.addColorStop(1,'rgba(255,170,70,0)');
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(tx,ty,90,0,TAU); ctx.fill();
+  // warm ground glow (cached sprite — was a per-frame gradient alloc)
+  drawGlow('rgba(255,170,70,0.35)', tx, ty, 90);
   // logs
   ctx.strokeStyle='#3a2614'; ctx.lineWidth=5; ctx.lineCap='round';
   ctx.beginPath(); ctx.moveTo(tx-12,ty+5); ctx.lineTo(tx+12,ty+8); ctx.stroke();
@@ -704,10 +735,7 @@ function drawLandmarkGround(ox, oy, skipChests) {
           if (!onScreen(fs.x,fs.y,70)) continue;
           const fl = 0.6 + 0.4*Math.sin(Game.time*2.2 + fs.x*0.03);
           ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha = a*0.85*fl;
-          const g = ctx.createRadialGradient(fs.x-ox, fs.y-oy, 2, fs.x-ox, fs.y-oy, 44);
-          g.addColorStop(0,'#aee6f5'); g.addColorStop(1,'rgba(90,160,220,0)');
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.ellipse(fs.x-ox, fs.y-oy, 44, 27, 0, 0, TAU); ctx.fill();
+          drawGlow('#aee6f5', fs.x-ox, fs.y-oy, 44, 27);
           // slow ripple ring
           const rr = 10 + ((Game.time*14 + fs.y) % 26);
           ctx.globalAlpha = a*0.35*(1 - rr/36);
@@ -743,9 +771,7 @@ function drawLandmarkGround(ox, oy, skipChests) {
         if (!onScreen(gx,gy,40)) continue;
         const fl=0.6+0.4*Math.sin(Game.time*3+i);
         ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=night*0.8*fl;
-        const g=ctx.createRadialGradient(gx-ox,gy-oy,1,gx-ox,gy-oy,26);
-        g.addColorStop(0,'#aef0ff'); g.addColorStop(1,'rgba(120,200,255,0)');
-        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(gx-ox,gy-oy,26,0,TAU); ctx.fill(); ctx.restore();
+        drawGlow('#aef0ff', gx-ox, gy-oy, 26); ctx.restore();
       }
     }
   }
@@ -1032,15 +1058,22 @@ function drawManhunt(ox, oy) {
 }
 
 // Dead Eye: desaturating red vignette + pulsing target rings on enemies.
+let _deadeyeCv = null;
 function drawDeadEye() {
   const p = Game.player;
   if (!p.deadeyeActive) return;
   const ox=Camera.ox, oy=Camera.oy;
   ctx.save();
   ctx.fillStyle='rgba(70,20,20,0.20)'; ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
-  const g=ctx.createRadialGradient(CFG.VIEW_W/2,CFG.VIEW_H/2,120,CFG.VIEW_W/2,CFG.VIEW_H/2,CFG.VIEW_W*0.62);
-  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(24,0,0,0.6)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  if (!_deadeyeCv) {   // static red tunnel — bake once (was a per-frame gradient)
+    _deadeyeCv = document.createElement('canvas');
+    _deadeyeCv.width = CFG.VIEW_W; _deadeyeCv.height = CFG.VIEW_H;
+    const dc = _deadeyeCv.getContext('2d');
+    const g=dc.createRadialGradient(CFG.VIEW_W/2,CFG.VIEW_H/2,120,CFG.VIEW_W/2,CFG.VIEW_H/2,CFG.VIEW_W*0.62);
+    g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(24,0,0,0.6)');
+    dc.fillStyle=g; dc.fillRect(0,0,CFG.VIEW_W,CFG.VIEW_H);
+  }
+  ctx.drawImage(_deadeyeCv, 0, 0);
   // Target rings on on-screen enemies
   for (const e of Game.enemies) {
     if (e.dead) continue;
@@ -1493,13 +1526,19 @@ function drawStartScreen() {
   ctx.fillStyle='#d8c4a0'; ctx.font='16px Georgia';
   lore.forEach((l,i)=> ctx.fillText(l, CFG.VIEW_W/2, 300+i*26));
 
+  const touch = typeof TouchUI !== 'undefined' && TouchUI.active;
   ctx.fillStyle='#9a8460'; ctx.font='14px Georgia';
-  ctx.fillText("WASD move · Mouse aim · Click fire · RMB Dead Eye · Shift dash · Q dynamite", CFG.VIEW_W/2, 444);
-  ctx.fillText("F lasso · H whistle · R reload · E interact/mount · ESC pause", CFG.VIEW_W/2, 462);
+  if (touch) {
+    ctx.fillText("Left thumb: move · Right thumb: aim & fire (shots seek your target)", CFG.VIEW_W/2, 444);
+    ctx.fillText("Top row: tools · DASH and Dead Eye at the edges · [E] appears when needed", CFG.VIEW_W/2, 462);
+  } else {
+    ctx.fillText("WASD move · Mouse aim · Click fire · RMB Dead Eye · Shift dash · Q dynamite", CFG.VIEW_W/2, 444);
+    ctx.fillText("F lasso · H whistle · R reload · E interact/mount · ESC pause", CFG.VIEW_W/2, 462);
+  }
 
-  // --- Difficulty selector (1 / 2 / 3) ---
+  // --- Difficulty selector (1 / 2 / 3, or tap a pill) ---
   ctx.fillStyle='#c8a878'; ctx.font='15px Georgia';
-  ctx.fillText('CHOOSE YOUR TROUBLE — press 1 · 2 · 3', CFG.VIEW_W/2, 498);
+  ctx.fillText(touch ? 'CHOOSE YOUR TROUBLE — tap one' : 'CHOOSE YOUR TROUBLE — press 1 · 2 · 3', CFG.VIEW_W/2, 498);
   const pills = [
     { key:'1', id:'easy',   name:'Easy',   note:'the gentle ride' },
     { key:'2', id:'normal', name:'Normal', note:'a fair fight' },
@@ -1507,7 +1546,9 @@ function drawStartScreen() {
   ];
   const pw=190, ph=46, gap=18, total=pills.length*pw+(pills.length-1)*gap;
   let px = CFG.VIEW_W/2 - total/2;
+  START_PILLS = [];
   pills.forEach(p=>{
+    START_PILLS.push({ id:p.id, x:px, y:512, w:pw, h:ph });   // tap targets (handleMeta)
     const sel = Game.difficulty===p.id;
     ctx.fillStyle = sel ? 'rgba(180,110,40,0.55)' : 'rgba(40,28,14,0.6)';
     ctx.fillRect(px, 512, pw, ph);
@@ -1515,7 +1556,7 @@ function drawStartScreen() {
     ctx.lineWidth = sel ? 3 : 1.5; ctx.strokeRect(px, 512, pw, ph);
     ctx.fillStyle = sel ? '#fff0c0' : '#c8b890';
     ctx.font='bold 18px Georgia'; ctx.textAlign='center';
-    ctx.fillText(`[${p.key}] ${p.name}`, px+pw/2, 535);
+    ctx.fillText(touch ? p.name : `[${p.key}] ${p.name}`, px+pw/2, 535);
     ctx.fillStyle = sel ? '#e8d5a8' : '#8a7a5a'; ctx.font='italic 12px Georgia';
     ctx.fillText(p.note, px+pw/2, 551);
     px += pw+gap;
@@ -1523,17 +1564,38 @@ function drawStartScreen() {
 
   // Blinking prompt
   if (Math.floor(Game.time*2)%2===0 || Game.time===0) {
-    titleText('Press any other key to ride', 600, 26, '#e8c45a');
+    titleText(touch ? 'Tap anywhere else to ride' : 'Press any other key to ride', 600, 26, '#e8c45a');
   }
 }
+let START_PILLS = null;
 
 function drawPauseScreen() {
   panelBG();
   titleText('PAUSED', 320, 56, '#e8c45a');
+  const touch = typeof TouchUI !== 'undefined' && TouchUI.active;
   ctx.fillStyle='#d8c4a0'; ctx.font='18px Georgia'; ctx.textAlign='center';
-  ctx.fillText('Press ESC or P to resume', CFG.VIEW_W/2, 380);
-  ctx.fillText('Press N to abandon and start over', CFG.VIEW_W/2, 410);
+  if (touch) {
+    // Tappable RESUME + firing-mode toggle (hit rects consumed by handleMeta)
+    const bw=280, bh=54, bx=CFG.VIEW_W/2-bw/2;
+    PAUSE_BTNS = { resume:{x:bx,y:372,w:bw,h:bh}, aim:{x:bx,y:444,w:bw,h:bh} };
+    const btn = (r, label, sub) => {
+      ctx.fillStyle='#5a3618'; ctx.fillRect(r.x,r.y,r.w,r.h);
+      ctx.strokeStyle='#c89050'; ctx.lineWidth=2.5; ctx.strokeRect(r.x,r.y,r.w,r.h);
+      ctx.fillStyle='#f0d8a8'; ctx.font='bold 20px Georgia';
+      ctx.fillText(label, CFG.VIEW_W/2, r.y+ (sub?24:33));
+      if (sub) { ctx.fillStyle='#c8a878'; ctx.font='12px Georgia'; ctx.fillText(sub, CFG.VIEW_W/2, r.y+42); }
+    };
+    btn(PAUSE_BTNS.resume, 'RESUME');
+    btn(PAUSE_BTNS.aim, `FIRING: ${TouchUI.aimMode==='assist'?'ASSISTED':'MANUAL'}`,
+        TouchUI.aimMode==='assist' ? 'shots seek the nearest target — tap to switch'
+                                   : 'you aim every shot — tap to switch');
+  } else {
+    PAUSE_BTNS = null;
+    ctx.fillText('Press ESC or P to resume', CFG.VIEW_W/2, 380);
+    ctx.fillText('Press N to abandon and start over', CFG.VIEW_W/2, 410);
+  }
 }
+let PAUSE_BTNS = null;
 
 function drawGameOver() {
   panelBG();
